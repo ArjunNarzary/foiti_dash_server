@@ -1,0 +1,149 @@
+const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: {
+    type: String,
+    required: [true, "Please enter your email"],
+    unique: [true, "Email already exist"],
+  },
+  email_varified: {
+    type: Boolean,
+    default: false,
+  },
+  username: {
+    type: String,
+    unique: [true, "Username has already been taken"],
+    lowercase: true,
+  },
+  password: {
+    type: String,
+    required: [true, "Plase enter a password"],
+    select: false,
+    minlength: [8, "Password should be minimum 8 characters"],
+    select: false,
+  },
+  profileImage: {
+    thumbnail: {
+      public_url: String,
+      private_id: String,
+    },
+    large: {
+      public_url: String,
+      private_id: String,
+    },
+  },
+  coverImage: {
+    thumbnail: {
+      public_url: String,
+      private_id: String,
+    },
+    large: {
+      public_url: String,
+      private_id: String,
+    },
+  },
+  gender: String,
+  dob: {
+    date: Date,
+  },
+  phoneNumber: String,
+  address: {
+    name: String,
+    administrative_area_level_1: String,
+    country: String,
+    country_short: String,
+  },
+  current_location: {
+    address: {
+      name: String,
+      administrative_area_level_1: String,
+      country: String,
+      country_short: String,
+    },
+  },
+  bio: {
+    type: String,
+    maxlength: [1000, "Bio should be under 1000 characters"],
+  },
+  website: String,
+  vistied: {
+    places: Number,
+    country: Number,
+    helped_navigate: Number,
+  },
+  total_uploads: Number,
+  follower: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  following: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  upload_status: Boolean,
+  account_status: {
+    type: String,
+    enum: ["silent", "active", "deactivated"],
+  },
+  terminated: {
+    type: Boolean,
+    default: false,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now(),
+    immutable: true,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now(),
+  },
+});
+
+//HASH PASSWORD
+userSchema.pre("save", async function (next) {
+  this.updatedAt = Date.now();
+  if (this.isModified("password")) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+  next();
+});
+
+//MATCH PASSWORD
+userSchema.methods.matchPassword = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+//GENEARATE TOKEN
+userSchema.methods.generateToken = function () {
+  return jwt.sign(
+    { _id: this._id, email: this.email },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "90d",
+    }
+  );
+};
+
+//Check isFollwed
+userSchema.methods.isFollowed = async function (id) {
+  return this.follower.includes(id);
+};
+
+//SET VIRTUAL FOR FOLLOWING COUNT
+userSchema.virtual("totalFollowing").get(function () {
+  return this.following.length;
+});
+//SET VIRTUAL FOR FOLLOWERS COUNT
+userSchema.virtual("totalFollower").get(function () {
+  return this.follower.length;
+});
+
+module.exports = mongoose.model("User", userSchema);
