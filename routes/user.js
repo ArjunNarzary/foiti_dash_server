@@ -1,4 +1,6 @@
 const express = require("express");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
 const {
   registerUser,
   loginUser,
@@ -6,6 +8,8 @@ const {
   viewOwnProfile,
   followUnfollowUser,
   viewOthersProfile,
+  uploadProfileImage,
+  uploadCoverImage,
 } = require("../controllers/user");
 const { validateUser } = require("../middlewares/validations/userValidator");
 
@@ -21,6 +25,17 @@ router
   .route("/")
   .put(isAuthenticated, validateUser("editProfile"), editProfile)
   .get(isAuthenticated, viewOwnProfile);
+
+//UPLOAD OR CHANGE PROFILE
+router
+  .route("/changeProfileImage")
+  .post(isAuthenticated, upload.single("image"), uploadProfileImage);
+
+//UPLOAD OR CHANGE COVER PHOTO
+router
+  .route("/changeCover")
+  .post(isAuthenticated, upload.single("cover"), uploadCoverImage);
+
 //FOLLOW UNFOLLOW USER
 router
   .route("/:id")

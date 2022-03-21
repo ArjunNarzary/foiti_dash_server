@@ -28,7 +28,7 @@ exports.isAuthenticated = async (req, res, next) => {
     next();
   } catch (error) {
     errors.genearl = "Your are not authorized user";
-    return res.stutus(400).json({
+    return res.status(400).json({
       success: false,
       message: errors,
     });

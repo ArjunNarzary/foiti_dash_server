@@ -1,6 +1,13 @@
+const sharp = require("sharp");
+const fs = require("fs");
+const util = require("util");
+const unlinkFile = util.promisify(fs.unlink);
+const { validationResult } = require("express-validator");
 const User = require("../models/User");
 const FollowDetail = require("../models/FollowDetail");
-const { validationResult } = require("express-validator");
+const { uploadFile, deleteFile } = require("../utils/s3");
+const Sharp = require("sharp");
+const jwt = require("jsonwebtoken");
 
 function createError(errors, validate) {
   const arrError = validate.array();
@@ -28,7 +35,7 @@ exports.registerUser = async (req, res) => {
       password: req.body.password,
 
       //CHANGES BELOW IN FUTURE
-      upload_status: 1,
+      upload_status: true,
       account_status: "silent",
     };
 
@@ -233,7 +240,7 @@ exports.followUnfollowUser = async (req, res) => {
       });
     }
 
-    //Alreadt followed than unfollow
+    //Already followed than unfollow
     if (owner.follower.includes(authUser._id)) {
       const index = owner.follower.indexOf(authUser.id);
       owner.follower.splice(index, 1);
@@ -247,9 +254,7 @@ exports.followUnfollowUser = async (req, res) => {
       await FollowDetail.deleteOne({
         $and: [{ follower: user._id }, { following: owner._id }],
       });
-      // if (userDetail) {
-      //   await userDetail.remove();
-      // }
+
       return res.status(200).json({
         success: true,
         message: `You have unfollowed ${owner.name}`,
@@ -271,6 +276,112 @@ exports.followUnfollowUser = async (req, res) => {
         message: `You are now following ${owner.name}`,
       });
     }
+  } catch (error) {
+    errors.general = error.message;
+    res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+};
+
+//UPLOAD OR CHANGE PROFILE IMAGE
+// const storage = multer.memoryStorage();
+
+exports.uploadProfileImage = async (req, res) => {
+  const errors = {};
+  try {
+    const { token } = req.headers;
+    const decoded = await jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded._id);
+    if (!user) {
+      errors.general = "Unauthorized User";
+      res.status(400).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    //Resize Image for large DP
+    const sharpLarge = await sharp(req.file.path).resize(100).toBuffer();
+    const resultLarge = await uploadFile(req.file, sharpLarge);
+    //Resize Image for thumbnail
+    const sharpThumb = await sharp(req.file.path).resize(50).toBuffer();
+    const resultThumb = await uploadFile(req.file, sharpThumb);
+
+    //If not empty delete file from S3
+    if (user.profileImage.large.private_id != null) {
+      await deleteFile(user.profileImage.large.private_id);
+      await deleteFile(user.profileImage.thumbnail.private_id);
+    }
+    const newData = {
+      large: {
+        public_url: resultLarge.Location,
+        private_id: resultLarge.Key,
+      },
+      thumbnail: {
+        public_url: resultThumb.Location,
+        private_id: resultThumb.Key,
+      },
+    };
+    user.profileImage = newData;
+    await user.save();
+
+    //delete file from server storage
+    await unlinkFile(req.file.path);
+    res.status(200).json({
+      success: true,
+      message: "Profile uploaded successful",
+      // user,
+    });
+  } catch (error) {
+    errors.general = error.message;
+    res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+};
+
+exports.uploadCoverImage = async (req, res) => {
+  const errors = {};
+  try {
+    const { token } = req.headers;
+    const decoded = await jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded._id);
+    if (!user) {
+      errors.general = "Unauthorized User";
+      res.status(400).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    //Resize Image for large DP
+    const sharpLarge = await sharp(req.file.path).resize(1080).toBuffer();
+    const resultLarge = await uploadFile(req.file, sharpLarge);
+
+    //If not empty delete file from S3
+    if (user.coverImage.large.private_id != null) {
+      console.log("Delete File");
+      await deleteFile(user.coverImage.large.private_id);
+    }
+    const newData = {
+      large: {
+        public_url: resultLarge.Location,
+        private_id: resultLarge.Key,
+      },
+    };
+    user.coverImage = newData;
+    await user.save();
+
+    //delete file from server storage
+    await unlinkFile(req.file.path);
+    res.status(200).json({
+      success: true,
+      message: "Cover uploaded successful",
+      // user,
+    });
   } catch (error) {
     errors.general = error.message;
     res.status(500).json({
