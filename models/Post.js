@@ -57,15 +57,28 @@ const postSchema = new mongoose.Schema(
     saved: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "SavePost",
+        ref: "User",
       },
     ],
+    coordinate_status: {
+      type: Boolean,
+      default: false,
+    },
     status: {
+      type: String,
+      enum: ["silent", "active", "deactivated"],
+    },
+    terminated: {
       type: Boolean,
       default: false,
     },
   },
   { timestamps: true }
 );
+
+//CHECK IF LIKED
+postSchema.methods.hasLiked = async function (id) {
+  return this.like.includes(id);
+};
 
 module.exports = mongoose.model("Post", postSchema);

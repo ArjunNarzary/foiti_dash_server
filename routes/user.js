@@ -10,10 +10,16 @@ const {
   viewOthersProfile,
   uploadProfileImage,
   uploadCoverImage,
+  resetPassword,
+  updatePassword,
+  viewAllPost,
+  checkOtp,
+  crateNewPassword,
 } = require("../controllers/user");
 const { validateUser } = require("../middlewares/validations/userValidator");
 
 const { isAuthenticated } = require("../middlewares/auth");
+const { route } = require("express/lib/application");
 
 const router = express.Router();
 
@@ -26,6 +32,9 @@ router
   .put(isAuthenticated, validateUser("editProfile"), editProfile)
   .get(isAuthenticated, viewOwnProfile);
 
+//View posts of perticular user
+router.route("/posts/:id").post(isAuthenticated, viewAllPost);
+
 //UPLOAD OR CHANGE PROFILE
 router
   .route("/changeProfileImage")
@@ -35,6 +44,21 @@ router
 router
   .route("/changeCover")
   .post(isAuthenticated, upload.single("cover"), uploadCoverImage);
+
+//UPDATE PASSWORD
+router
+  .route("/updatePassword")
+  .post(isAuthenticated, validateUser("updatePassword"), updatePassword);
+
+//RESET PASSWORD
+router
+  .route("/resetPassword")
+  .post(validateUser("resetPassword"), resetPassword);
+//CHECK OTP AND CREATE NEW PASSWORD
+router
+  .route("/resetPassword/:id")
+  .post(validateUser("checkotp"), checkOtp)
+  .put(validateUser("newPassword"), crateNewPassword);
 
 //FOLLOW UNFOLLOW USER
 router

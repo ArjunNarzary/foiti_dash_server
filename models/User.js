@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const userSchema = new mongoose.Schema({
   name: String,
@@ -24,6 +25,10 @@ const userSchema = new mongoose.Schema({
     select: false,
     minlength: [8, "Password should be minimum 8 characters"],
     select: false,
+  },
+  socialLogin: {
+    type: Boolean,
+    default: false,
   },
   profileImage: {
     thumbnail: {
@@ -69,12 +74,28 @@ const userSchema = new mongoose.Schema({
     maxlength: [1000, "Bio should be under 1000 characters"],
   },
   website: String,
-  vistied: {
-    places: Number,
-    country: Number,
-    helped_navigate: Number,
+  visited: {
+    places: {
+      type: Number,
+      default: 0,
+    },
+    country: {
+      type: Number,
+      default: 0,
+    },
   },
-  total_uploads: Number,
+  helped_navigate: {
+    type: Number,
+    default: 0,
+  },
+  total_uploads: {
+    type: Number,
+    default: 0,
+  },
+  total_contribution: {
+    type: Number,
+    default: 0,
+  },
   follower: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -96,6 +117,8 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  resetPasswordToken: String,
+  resetPasswordExpire: Date,
   createdAt: {
     type: Date,
     default: Date.now(),
@@ -145,5 +168,23 @@ userSchema.virtual("totalFollowing").get(function () {
 userSchema.virtual("totalFollower").get(function () {
   return this.follower.length;
 });
+
+//GENERATE OTP
+userSchema.methods.generateOtp = function () {
+  return Math.floor(100000 + Math.random() * 900000);
+};
+
+//GENERATE RESET PASSWORD TOKEN AND SAVE
+userSchema.methods.getResetPasswordToken = function () {
+  const resetToken = crypto.randomBytes(20).toString("hex");
+
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
+};
 
 module.exports = mongoose.model("User", userSchema);
