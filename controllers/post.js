@@ -12,6 +12,24 @@ const PlaceCreatedBy = require("../models/PlaceCreatedBy");
 const Contribution = require("../models/Contribution");
 const SavePostPlace = require("../models/SavePostPlace");
 
+exports.createContribution = async (req, res) => {
+  try {
+    const contri = await Contribution.create({
+      place: 1,
+      post: 1,
+      comment: 1,
+      direction: 1,
+      feedback: 1,
+      share: 1,
+    });
+
+    res.json({
+      success: true,
+      contri,
+    });
+  } catch (error) {}
+};
+
 //CREATE POST
 exports.createPost = async (req, res) => {
   let errors = {};
@@ -457,7 +475,6 @@ exports.savePost = async (req, res) => {
 
     //If post is already save by user
     if (post.saved.includes(authUser._id)) {
-      console.log("Saved post");
       const index = post.saved.indexOf(authUser._id);
       post.saved.splice(index, 1);
       await post.save();
@@ -488,7 +505,6 @@ exports.savePost = async (req, res) => {
       message: "You have successfully save the post",
     });
   } catch (error) {
-    console.log(error.message);
     errors.general = error.message;
     res.status(500).json({
       success: false,

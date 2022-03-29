@@ -7,6 +7,7 @@ exports.validateUser = (method) => {
     case "createUser": {
       return [
         body("email")
+          .trim()
           .exists({ checkFalsy: true })
           .withMessage("Please provide email address")
           .isEmail()
@@ -34,6 +35,7 @@ exports.validateUser = (method) => {
     case "loginUser": {
       return [
         body("email")
+          .trim()
           .exists({ checkFalsy: true })
           .withMessage("Please provide email address")
           .isEmail()
@@ -47,6 +49,19 @@ exports.validateUser = (method) => {
       ];
     }
 
+    //Validate Name
+    case "validateName": {
+      return [
+        body("name")
+          .trim()
+          .exists({ checkFalsy: true })
+          .withMessage("Please enter your name")
+          .isLength({ min: 4 })
+          .withMessage("Name must contain atlest 4 character")
+          .bail(),
+      ];
+    }
+
     //Edit Profile
     case "editProfile": {
       return [
@@ -55,15 +70,15 @@ exports.validateUser = (method) => {
           .exists({ checkFalsy: true })
           .withMessage("Please enter your name")
           .bail(),
-        body("username")
-          .trim()
-          .exists({ checkFalsy: true })
-          .withMessage("Please enter your username")
-          .isLength({ min: 5 })
-          .withMessage("Username must contain atlest 5 character")
-          .custom((value) => !/\s/.test(value))
-          .withMessage("No spaces are allowed in the username")
-          .bail(),
+        // body("username")
+        //   .trim()
+        //   .exists({ checkFalsy: true })
+        //   .withMessage("Please enter your username")
+        //   .isLength({ min: 5 })
+        //   .withMessage("Username must contain atlest 5 character")
+        //   .custom((value) => !/\s/.test(value))
+        //   .withMessage("No spaces are allowed in the username")
+        //   .bail(),
         body("bio")
           .isLength({ max: 1000 })
           .withMessage("Please enter your bio within 1000 characters")
@@ -113,6 +128,7 @@ exports.validateUser = (method) => {
     case "resetPassword": {
       return [
         body("email")
+          .trim()
           .exists({ checkFalsy: true })
           .withMessage("Please provide email address")
           .isEmail()

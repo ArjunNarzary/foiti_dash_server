@@ -19,6 +19,28 @@ function createError(errors, validate) {
   return errors;
 }
 
+function randomString(length, chars) {
+  var result = "";
+  for (var i = length; i > 0; --i)
+    result += chars[Math.floor(Math.random() * chars.length)];
+  return result;
+}
+
+function generateUniqueUsername(rString) {
+  return User.findOne({ username: rString })
+    .then(function (account) {
+      if (account) {
+        rString = randomString(10, "0123456789abcdefghijklmnopqrstuvwxyz.");
+        return generateUniqueUsername(rString); // <== return statement here
+      }
+      return rString;
+    })
+    .catch(function (err) {
+      console.error(err);
+      throw err;
+    });
+}
+
 //CREATE USER
 exports.registerUser = async (req, res) => {
   let errors = {};
@@ -34,9 +56,15 @@ exports.registerUser = async (req, res) => {
       });
     }
 
+    //CREATE RANDOM USERNAME
+    let rString = randomString(10, "0123456789abcdefghijklmnopqrstuvwxyz");
+    console.log(rString);
+    const username = await generateUniqueUsername(rString);
+
     const newUserData = {
-      email: req.body.email,
+      email: req.body.email.trim(),
       password: req.body.password,
+      username,
 
       //CHANGES BELOW IN FUTURE
       upload_status: true,
@@ -54,6 +82,7 @@ exports.registerUser = async (req, res) => {
     });
   } catch (error) {
     errors.general = error.message;
+    console.log(error);
     res.status(500).json({
       success: false,
       message: errors,
@@ -73,7 +102,8 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    const { email, password } = req.body;
+    let { email, password } = req.body;
+    email = email.toLowerCase().trim();
 
     const user = await User.findOne({ email }).select(
       "password name email username account_status terminated"
@@ -120,6 +150,39 @@ exports.loginUser = async (req, res) => {
   }
 };
 
+//Enter name
+exports.enterName = async (req, res) => {
+  let errors = {};
+  try {
+    const validate = validationResult(req);
+    if (!validate.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: createError(errors, validate),
+      });
+    }
+
+    const { name, authUser } = req.body;
+
+    const user = await User.findById(authUser._id);
+
+    user.name = name;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "You have successfully added your name",
+      user,
+    });
+  } catch (error) {
+    errors.general = error.message;
+    res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+};
 //EDIT PROFILE
 exports.editProfile = async (req, res) => {
   let errors = {};
@@ -132,24 +195,24 @@ exports.editProfile = async (req, res) => {
       });
     }
 
-    const { name, username, bio, website, address, authUser } = req.body;
+    const { name, bio, website, address, authUser } = req.body;
 
-    const userWithSameUsername = await User.find({
-      $and: [{ username: username }, { _id: { $ne: authUser._id } }],
-    });
+    // const userWithSameUsername = await User.find({
+    //   $and: [{ username: username }, { _id: { $ne: authUser._id } }],
+    // });
 
-    if (userWithSameUsername.length > 0) {
-      errors.username = "Username has alrady been taken";
-      return res.status(409).json({
-        success: false,
-        message: errors,
-      });
-    }
+    // if (userWithSameUsername.length > 0) {
+    //   errors.username = "Username has alrady been taken";
+    //   return res.status(409).json({
+    //     success: false,
+    //     message: errors,
+    //   });
+    // }
 
     const user = await User.findById(authUser._id);
 
     user.name = name;
-    user.username = username;
+    // user.username = username;
     user.bio = bio;
     user.website = website;
     user.address = address;
@@ -159,6 +222,7 @@ exports.editProfile = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Profile edited successful",
+      user,
     });
   } catch (error) {
     errors.general = error.message;
@@ -282,6 +346,7 @@ exports.viewAllPost = async (req, res) => {
         res.status(404).json({
           success: false,
           message: errors,
+          posts,
         });
     }
 
@@ -381,7 +446,7 @@ exports.uploadProfileImage = async (req, res) => {
     }
 
     //Resize Image for large DP
-    const sharpLarge = await sharp(req.file.path).resize(100).toBuffer();
+    const sharpLarge = await sharp(req.file.path).resize(150).toBuffer();
     const resultLarge = await uploadFile(req.file, sharpLarge);
     //Resize Image for thumbnail
     const sharpThumb = await sharp(req.file.path).resize(50).toBuffer();
@@ -437,7 +502,7 @@ exports.uploadCoverImage = async (req, res) => {
     }
 
     //Resize Image for large DP
-    const sharpLarge = await sharp(req.file.path).resize(1080).toBuffer();
+    const sharpLarge = await sharp(req.file.path).resize(640).toBuffer();
     const resultLarge = await uploadFile(req.file, sharpLarge);
 
     //If not empty delete file from S3

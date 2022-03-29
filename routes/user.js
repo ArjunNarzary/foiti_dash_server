@@ -15,18 +15,23 @@ const {
   viewAllPost,
   checkOtp,
   crateNewPassword,
+  enterName,
 } = require("../controllers/user");
 const { validateUser } = require("../middlewares/validations/userValidator");
 
 const { isAuthenticated } = require("../middlewares/auth");
-const { route } = require("express/lib/application");
 
 const router = express.Router();
 
 //REGISTER USER
 router.route("/register").post(validateUser("createUser"), registerUser);
-//LOGIN, EDIT PROFILE AND VIEW OWN PROFILE
+//LOGIN USER
 router.route("/login").post(validateUser("loginUser"), loginUser);
+// Edit name
+router
+  .route("/welcome")
+  .post(isAuthenticated, validateUser("validateName"), enterName);
+// EDIT PROFILE AND VIEW OWN PROFILE
 router
   .route("/")
   .put(isAuthenticated, validateUser("editProfile"), editProfile)

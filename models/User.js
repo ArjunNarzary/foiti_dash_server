@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, "Please enter your email"],
     unique: [true, "Email already exist"],
+    lowercase: true,
   },
   email_varified: {
     type: Boolean,
@@ -18,6 +19,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: [true, "Username has already been taken"],
     lowercase: true,
+    sparse: true,
   },
   password: {
     type: String,
@@ -59,15 +61,16 @@ const userSchema = new mongoose.Schema({
     name: String,
     administrative_area_level_1: String,
     country: String,
-    country_short: String,
+    short_country: String,
   },
   current_location: {
     address: {
       name: String,
       administrative_area_level_1: String,
       country: String,
-      country_short: String,
+      short_country: String,
     },
+    createDate: Date,
   },
   bio: {
     type: String,
@@ -108,6 +111,14 @@ const userSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  foiti_ambassador: {
+    type: Boolean,
+    default: false,
+  },
   upload_status: Boolean,
   account_status: {
     type: String,

@@ -7,6 +7,7 @@ const {
   editPost,
   viewPost,
   savePost,
+  createContribution,
 } = require("../controllers/post");
 const { isAuthenticated } = require("../middlewares/auth");
 const router = express.Router();
@@ -19,6 +20,7 @@ router.route("/like/:id").get(isAuthenticated, likeUnlikePost);
 //Save and Unsave post
 router.route("/save/:id").get(isAuthenticated, savePost);
 
+router.route("/contribution").get(createContribution);
 //EDIT, VIEW and DELETE POST
 router
   .route("/:id")
