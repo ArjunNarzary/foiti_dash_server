@@ -105,11 +105,12 @@ exports.loginUser = async (req, res) => {
     let { email, password } = req.body;
     email = email.toLowerCase().trim();
 
-    const user = await User.findOne({ email }).select(
-      "password name email username account_status terminated"
-    );
+    const user = await User.findOne({
+      $or: [{ username: email }, { email: email }],
+    }).select("password name email username account_status terminated");
     if (!user) {
-      errors.email = "User does not exist";
+      errors.password =
+        "Your password is incorrect or this account doesn't exist";
       return res.status(400).json({
         success: false,
         message: errors,
@@ -119,7 +120,8 @@ exports.loginUser = async (req, res) => {
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
-      errors.password = "You have entered wrong password";
+      errors.password =
+        "Your password is incorrect or this account doesn't exist";
       return res.status(401).json({
         success: false,
         message: errors,
@@ -128,7 +130,7 @@ exports.loginUser = async (req, res) => {
 
     if (user.terminated) {
       errors.general = "Your account has been terminated.";
-      return res.status(401).json({
+      return res.status(403).json({
         success: false,
         message: errors,
       });
@@ -197,24 +199,12 @@ exports.editProfile = async (req, res) => {
 
     const { name, bio, website, address, authUser } = req.body;
 
-    // const userWithSameUsername = await User.find({
-    //   $and: [{ username: username }, { _id: { $ne: authUser._id } }],
-    // });
-
-    // if (userWithSameUsername.length > 0) {
-    //   errors.username = "Username has alrady been taken";
-    //   return res.status(409).json({
-    //     success: false,
-    //     message: errors,
-    //   });
-    // }
-
     const user = await User.findById(authUser._id);
 
     user.name = name;
     // user.username = username;
-    user.bio = bio;
-    user.website = website;
+    user.bio = bio.trim();
+    user.website = website.toLowerCase().trim();
     user.address = address;
 
     await user.save();
@@ -230,6 +220,168 @@ exports.editProfile = async (req, res) => {
       success: false,
       message: errors,
     });
+  }
+};
+
+//Update Username
+exports.updateUsername = async (req, res) => {
+  let errors = {};
+  try {
+    const validate = validationResult(req);
+    if (!validate.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: createError(errors, validate),
+      });
+    }
+
+    const { username, authUser } = req.body;
+
+    const userWithSameUsername = await User.find({
+      $and: [{ username: username }, { _id: { $ne: authUser._id } }],
+    });
+
+    if (userWithSameUsername.length > 0) {
+      errors.username = "Username has alrady been taken";
+      return res.status(409).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    const user = await User.findById(authUser._id);
+    user.username = username;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Username updated successful",
+      user,
+    });
+  } catch (error) {
+    errors.general = error.message;
+    res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+};
+
+//Update Email
+exports.updateEmail = async (req, res) => {
+  let errors = {};
+  try {
+    const validate = validationResult(req);
+    if (!validate.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: createError(errors, validate),
+      });
+    }
+
+    const { email, authUser } = req.body;
+
+    const user = await User.findById(authUser._id);
+    if (!user) {
+      errors.general = "User not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    if (user.email.trim() == email.trim().toLowerCase()) {
+      errors.email = "New email must be different from current email";
+      return res.status(409).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    //Check for existing email
+    const userWithSameEmail = await User.find({
+      $and: [{ email: email }, { _id: { $ne: authUser._id } }],
+    });
+
+    if (userWithSameEmail.length > 0) {
+      errors.email = "Email has alrady been taken";
+      return res.status(409).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    user.email = email.toLowerCase().trim();
+    user.isVerified = false;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Email updated successful",
+      user,
+    });
+  } catch (error) {
+    errors.general = error.message;
+    res.status(500).json({ success: false, message: errors });
+  }
+};
+
+//Update Phone Number
+exports.updatePhone = async (req, res) => {
+  let errors = {};
+  try {
+    const validate = validationResult(req);
+    if (!validate.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: createError(errors, validate),
+      });
+    }
+
+    const { email, authUser } = req.body;
+
+    const user = await User.findById(authUser._id);
+    if (!user) {
+      errors.general = "User not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    if (user.email.trim() == email.trim().toLowerCase()) {
+      errors.email = "New email must be different from current email";
+      return res.status(409).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    //Check for existing email
+    const userWithSameEmail = await User.find({
+      $and: [{ email: email }, { _id: { $ne: authUser._id } }],
+    });
+
+    if (userWithSameEmail.length > 0) {
+      errors.email = "Email has alrady been taken";
+      return res.status(409).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    user.email = email.toLowerCase().trim();
+    user.isVerified = false;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Email updated successful",
+      user,
+    });
+  } catch (error) {
+    errors.general = error.message;
+    res.status(500).json({ success: false, message: errors });
   }
 };
 
@@ -446,7 +598,7 @@ exports.uploadProfileImage = async (req, res) => {
     }
 
     //Resize Image for large DP
-    const sharpLarge = await sharp(req.file.path).resize(150).toBuffer();
+    const sharpLarge = await sharp(req.file.path).resize(200).toBuffer();
     const resultLarge = await uploadFile(req.file, sharpLarge);
     //Resize Image for thumbnail
     const sharpThumb = await sharp(req.file.path).resize(50).toBuffer();
@@ -475,7 +627,7 @@ exports.uploadProfileImage = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Profile uploaded successful",
-      // user,
+      user,
     });
   } catch (error) {
     errors.general = error.message;
@@ -502,7 +654,7 @@ exports.uploadCoverImage = async (req, res) => {
     }
 
     //Resize Image for large DP
-    const sharpLarge = await sharp(req.file.path).resize(640).toBuffer();
+    const sharpLarge = await sharp(req.file.path).resize(1080).toBuffer();
     const resultLarge = await uploadFile(req.file, sharpLarge);
 
     //If not empty delete file from S3
@@ -524,7 +676,7 @@ exports.uploadCoverImage = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Cover uploaded successful",
-      // user,
+      user,
     });
   } catch (error) {
     errors.general = error.message;
