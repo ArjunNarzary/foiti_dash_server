@@ -74,6 +74,7 @@ exports.registerUser = async (req, res) => {
     const user = await User.create(newUserData);
 
     const token = await user.generateToken();
+    user.password = "";
 
     return res.status(201).json({
       success: true,
@@ -107,7 +108,7 @@ exports.loginUser = async (req, res) => {
 
     const user = await User.findOne({
       $or: [{ username: email }, { email: email }],
-    }).select("password name email username account_status terminated");
+    }).select("+password");
     if (!user) {
       errors.password =
         "Your password is incorrect or this account doesn't exist";
@@ -137,6 +138,8 @@ exports.loginUser = async (req, res) => {
     }
 
     const token = await user.generateToken();
+
+    user.password = "";
 
     return res.status(200).json({
       success: true,
@@ -202,9 +205,13 @@ exports.editProfile = async (req, res) => {
     const user = await User.findById(authUser._id);
 
     user.name = name;
-    // user.username = username;
-    user.bio = bio.trim();
-    user.website = website.toLowerCase().trim();
+    console.log("bio", bio);
+    if (bio) {
+      user.bio = bio.trim();
+    }
+    if (website) {
+      user.website = website.toLowerCase().trim();
+    }
     user.address = address;
 
     await user.save();
@@ -242,7 +249,7 @@ exports.updateUsername = async (req, res) => {
     });
 
     if (userWithSameUsername.length > 0) {
-      errors.username = "Username has alrady been taken";
+      errors.username = "Username has already been taken";
       return res.status(409).json({
         success: false,
         message: errors,
@@ -304,7 +311,7 @@ exports.updateEmail = async (req, res) => {
     });
 
     if (userWithSameEmail.length > 0) {
-      errors.email = "Email has alrady been taken";
+      errors.email = "This email is already registered";
       return res.status(409).json({
         success: false,
         message: errors,
@@ -338,7 +345,7 @@ exports.updatePhone = async (req, res) => {
       });
     }
 
-    const { email, authUser } = req.body;
+    const { phoneNumber, authUser } = req.body;
 
     const user = await User.findById(authUser._id);
     if (!user) {
@@ -349,34 +356,35 @@ exports.updatePhone = async (req, res) => {
       });
     }
 
-    if (user.email.trim() == email.trim().toLowerCase()) {
-      errors.email = "New email must be different from current email";
-      return res.status(409).json({
-        success: false,
-        message: errors,
-      });
+    if (user.phoneNumber) {
+      if (user.phoneNumber.trim() == phoneNumber.trim()) {
+        errors.phoneNumber = "Phone number already in use";
+        return res.status(409).json({
+          success: false,
+          message: errors,
+        });
+      }
     }
 
-    //Check for existing email
-    const userWithSameEmail = await User.find({
-      $and: [{ email: email }, { _id: { $ne: authUser._id } }],
+    //Check for existing phone number
+    const userWithSamePhone = await User.find({
+      $and: [{ phoneNumber: phoneNumber }, { _id: { $ne: authUser._id } }],
     });
 
-    if (userWithSameEmail.length > 0) {
-      errors.email = "Email has alrady been taken";
+    if (userWithSamePhone.length > 0) {
+      errors.email = "This phone number is already in use";
       return res.status(409).json({
         success: false,
         message: errors,
       });
     }
 
-    user.email = email.toLowerCase().trim();
-    user.isVerified = false;
+    user.phoneNumber = phoneNumber.trim();
     await user.save();
 
     res.status(200).json({
       success: true,
-      message: "Email updated successful",
+      message: "Phone number updated successful",
       user,
     });
   } catch (error) {

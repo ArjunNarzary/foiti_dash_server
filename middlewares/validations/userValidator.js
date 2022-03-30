@@ -98,11 +98,11 @@ exports.validateUser = (method) => {
           .isLength({ max: 10 })
           .withMessage("Please enter your valid phone number")
           .bail(),
-        body("code")
-          .trim()
-          .exists({ checkFalsy: true })
-          .withMessage("Please select country code")
-          .bail(),
+        // body("code")
+        //   .trim()
+        //   .exists({ checkFalsy: true })
+        //   .withMessage("Please select country code")
+        //   .bail(),
       ];
     }
 
@@ -138,8 +138,8 @@ exports.validateUser = (method) => {
           .if((value) => value !== null)
           .isURL()
           .withMessage("Please enter valid url")
-          .isLength({ max: 200 })
-          .withMessage("Please enter your website within 200 characters")
+          .isLength({ max: 50 })
+          .withMessage("Please enter your website within 50 characters")
           .bail(),
       ];
     }
