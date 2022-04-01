@@ -58,7 +58,6 @@ exports.registerUser = async (req, res) => {
 
     //CREATE RANDOM USERNAME
     let rString = randomString(10, "0123456789abcdefghijklmnopqrstuvwxyz");
-    console.log(rString);
     const username = await generateUniqueUsername(rString);
 
     const newUserData = {
@@ -83,7 +82,6 @@ exports.registerUser = async (req, res) => {
     });
   } catch (error) {
     errors.general = error.message;
-    console.log(error);
     res.status(500).json({
       success: false,
       message: errors,
@@ -204,13 +202,21 @@ exports.editProfile = async (req, res) => {
 
     const user = await User.findById(authUser._id);
 
-    user.name = name;
-    console.log("bio", bio);
-    if (bio) {
-      user.bio = bio.trim();
+    user.name = name.replace(/\s\s+/g, " ");
+    if (bio != undefined && bio != "") {
+      user.bio =
+        bio
+          .trim()
+          .replace(/(\r\n|\r|\n){2}/g, "$1")
+          .replace(/(\r\n|\r|\n){3,}/g, "$1\n")
+          .replace(/(\r\n|\r|\n){2}/g, "$1") || "";
+    } else {
+      user.bio = bio;
     }
-    if (website) {
-      user.website = website.toLowerCase().trim();
+    if (website != "" && website != undefined) {
+      user.website = website.toLowerCase().trim() || "";
+    } else {
+      user.website = website;
     }
     user.address = address;
 

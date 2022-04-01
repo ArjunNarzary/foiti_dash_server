@@ -71,8 +71,8 @@ exports.validateUser = (method) => {
           .withMessage("Username must contain atlest 5 character")
           .isLength({ max: 30 })
           .withMessage("Username must be less than 30 characters")
-          .custom((value) => !/\s/.test(value))
-          .withMessage("No spaces are allowed in the username")
+          .custom((value) => /^[a-zA-Z0-9._]*$/.test(value))
+          .withMessage("Only alphanumeric characters and . _ are allowed")
           .bail(),
       ];
     }
@@ -94,9 +94,11 @@ exports.validateUser = (method) => {
         body("phoneNumber")
           .trim()
           .exists({ checkFalsy: true })
-          .withMessage("Please enter your phone number")
-          .isLength({ max: 10 })
-          .withMessage("Please enter your valid phone number")
+          .withMessage("Please enter a phone number")
+          .isLength({ max: 10, min: 10 })
+          .withMessage("Please enter a valid phone number without spaces")
+          .custom((value) => !/\s/.test(value))
+          .withMessage("No spaces are allowed in phone number")
           .bail(),
         // body("code")
         //   .trim()
