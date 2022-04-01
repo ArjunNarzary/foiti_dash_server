@@ -76,7 +76,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     maxlength: [1000, "Bio should be under 1000 characters"],
   },
-  website: String,
+  website: {
+    type: String,
+    lowercase: true,
+  },
   visited: {
     places: {
       type: Number,

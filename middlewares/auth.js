@@ -24,6 +24,14 @@ exports.isAuthenticated = async (req, res, next) => {
       });
     }
 
+    if (user.terminated) {
+      errors.general = "Your account has been terminated.";
+      return res.status(403).json({
+        success: false,
+        message: errors,
+      });
+    }
+
     req.body.authUser = user;
     next();
   } catch (error) {

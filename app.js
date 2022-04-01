@@ -20,11 +20,13 @@ app.use(cors());
 const user = require("./routes/user");
 const image = require("./routes/image");
 const post = require("./routes/post");
+const feedback = require("./routes/feedback");
 const versionUrl = "/api/v1";
 
 //Use Routes
 app.use(`${versionUrl}/user`, user);
 app.use(`${versionUrl}/image`, image);
 app.use(`${versionUrl}/post`, post);
+app.use(`${versionUrl}/feedback`, feedback);
 
 module.exports = app;

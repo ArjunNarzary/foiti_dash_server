@@ -16,6 +16,9 @@ const {
   checkOtp,
   crateNewPassword,
   enterName,
+  updateUsername,
+  updateEmail,
+  updatePhone,
 } = require("../controllers/user");
 const { validateUser } = require("../middlewares/validations/userValidator");
 
@@ -54,6 +57,13 @@ router
 router
   .route("/updatePassword")
   .post(isAuthenticated, validateUser("updatePassword"), updatePassword);
+
+//UPDATE USERNAME AND EMAIL
+router
+  .route("/update")
+  .post(isAuthenticated, validateUser("validateUsername"), updateUsername)
+  .put(isAuthenticated, validateUser("validateEmail"), updateEmail)
+  .patch(isAuthenticated, validateUser("validatePhone"), updatePhone);
 
 //RESET PASSWORD
 router
