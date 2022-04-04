@@ -11,6 +11,7 @@ const placeSchema = new mongoose.Schema(
       index: true,
     },
     address: {
+      route: String,
       natural_feature: String,
       neighborhood: String,
       sublocality_level_2: String,
@@ -22,6 +23,8 @@ const placeSchema = new mongoose.Schema(
       short_country: String,
       postal_code: String,
     },
+    short_address: String,
+    local_address: String,
     coordinates: {
       lat: String,
       lng: String,

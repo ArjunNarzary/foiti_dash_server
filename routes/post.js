@@ -14,6 +14,7 @@ const router = express.Router();
 
 //Create Post
 router.route("/").post(isAuthenticated, upload.single("postImage"), createPost);
+// router.route("/").post(upload.single("postImage"), createPost);
 
 //Like POST
 router.route("/like/:id").get(isAuthenticated, likeUnlikePost);

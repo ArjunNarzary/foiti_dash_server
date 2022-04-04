@@ -41,10 +41,10 @@ exports.createPost = async (req, res) => {
     const details = JSON.parse(req.body.details);
 
     //Validate CAPTION LENGTH
-    if (req.body.caption.length > 1000) {
-      errors.caption = "Please write caption within 1000 characeters";
+    if (req.body.caption.length > 2000) {
+      errors.caption = "Please write caption within 2000 characeters";
       await unlinkFile(req.file.path);
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: errors,
       });
@@ -53,7 +53,7 @@ exports.createPost = async (req, res) => {
     if (!user) {
       errors.general = "Unauthorized User";
       await unlinkFile(req.file.path);
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: errors,
       });
@@ -63,7 +63,7 @@ exports.createPost = async (req, res) => {
     if (user.upload_status === false) {
       errors.general = "You are not authorized to upload post yet";
       await unlinkFile(req.file.path);
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: errors,
       });
@@ -72,17 +72,33 @@ exports.createPost = async (req, res) => {
     //UPLOAD IMAGE TO S3
     //Resize post Image if width is larger than 1080
     let resultLarge = {};
-    if (details.images[0].width > 1080) {
-      const sharpLarge = await sharp(req.file.path).resize(1080).toBuffer();
-      resultLarge = await uploadFile(req.file, sharpLarge);
-    } else {
-      const fileStream = fs.createReadStream(file.path);
-      resultLarge = await uploadFile(req.file, fileStream);
-    }
+    // if (details.images[0].width > 1080) {
+    //   const sharpLarge = await sharp(req.file.path)
+    //     .resize(1080)
+    //     .withMetadata()
+    //     .toBuffer();
+    //   resultLarge = await uploadFile(req.file, sharpLarge);
+    // } else {
+    //   const fileStream = fs.createReadStream(req.file.path);
+    //   resultLarge = await uploadFile(req.file, fileStream);
+    // }
+    // console.log(req.file);
+    // const fileStream = fs.createReadStream(req.file.path);
+    // resultLarge = await uploadFile(req.file, fileStream);
+
+    const sharpLarge = await sharp(req.file.path)
+      .resize(1080)
+      .withMetadata()
+      .toBuffer();
+    resultLarge = await uploadFile(req.file, sharpLarge);
 
     //Resize Image for thumbnail
-    const sharpThumb = await sharp(req.file.path).resize(50).toBuffer();
+    const sharpThumb = await sharp(req.file.path)
+      .resize(500, 500, { fit: "cover" })
+      .withMetadata()
+      .toBuffer();
     const resultThumb = await uploadFile(req.file, sharpThumb);
+    // const resultThumb = await uploadFile(req.file, fileStream);
 
     //CHECK IF PLACE ID IS ALREADY PRESENT
     let newPlaceCreated = false;
@@ -105,7 +121,7 @@ exports.createPost = async (req, res) => {
         await deleteFile(resultThumb.Key);
         await deleteFile(resultLarge.Key);
       }
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: errors,
       });
@@ -196,15 +212,16 @@ exports.createPost = async (req, res) => {
     //delete file from server storage
     await unlinkFile(req.file.path);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       post,
-      newPlaceCreated,
+      uploadedBefore,
     });
   } catch (error) {
+    console.log(error);
     errors.general = error.message;
-    await unlinkFile(req.file.path);
-    res.status(500).json({
+    // await unlinkFile(req.file.path);
+    return res.status(500).json({
       success: false,
       error: errors,
     });
@@ -373,7 +390,7 @@ exports.viewPost = async (req, res) => {
 
     if (!post || post.status === "deactivated") {
       errors.general = "Post not found";
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: errors,
       });
@@ -384,14 +401,14 @@ exports.viewPost = async (req, res) => {
       liked = true;
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       post,
       liked,
     });
   } catch (error) {
     errors.general = error.message;
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: errors,
     });
