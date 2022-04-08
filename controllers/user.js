@@ -12,6 +12,7 @@ const Post = require("../models/Post");
 const Otp = require("../models/Otp");
 const crypto = require("crypto");
 const { sendEmail } = require("../middlewares/sentEmail");
+const { getCountry } = require("../utils/getCountry");
 
 function createError(errors, validate) {
   const arrError = validate.array();
@@ -81,7 +82,9 @@ exports.registerUser = async (req, res) => {
       token,
     });
   } catch (error) {
-    errors.general = error.message;
+    console.log(error.message);
+    errors.general = "Something went wrong";
+    // errors.general = error.message;
     res.status(500).json({
       success: false,
       message: errors,
@@ -145,8 +148,9 @@ exports.loginUser = async (req, res) => {
       token,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while logging in";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -179,8 +183,9 @@ exports.enterName = async (req, res) => {
       user,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Smething went wrong while entering your name";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -228,7 +233,8 @@ exports.editProfile = async (req, res) => {
       user,
     });
   } catch (error) {
-    errors.general = error.message;
+    console.log(error.message);
+    errors.general = "Something went wrong while editing your profile";
     res.status(500).json({
       success: false,
       message: errors,
@@ -266,14 +272,15 @@ exports.updateUsername = async (req, res) => {
     user.username = username;
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Username updated successful",
       user,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while updating your username";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -328,14 +335,15 @@ exports.updateEmail = async (req, res) => {
     user.isVerified = false;
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Email updated successful",
       user,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({ success: false, message: errors });
+    console.log(error.message);
+    errors.general = "Something went wrong while updating your email";
+    return res.status(500).json({ success: false, message: errors });
   }
 };
 
@@ -388,14 +396,15 @@ exports.updatePhone = async (req, res) => {
     user.phoneNumber = phoneNumber.trim();
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Phone number updated successful",
       user,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({ success: false, message: errors });
+    console.log(error.message);
+    errors.general = "Something went wrong while updating your phone number";
+    return res.status(500).json({ success: false, message: errors });
   }
 };
 
@@ -405,16 +414,52 @@ exports.viewOwnProfile = async (req, res) => {
   try {
     const { authUser } = req.body;
     const user = authUser;
+    //COUNT TOTAL POST UPLOADS
+    const totalPosts = await Post.countDocuments({ user: user._id });
+    let placesVisited = 0;
+    let countryVisited = 0;
+    if (totalPosts != 0) {
+      //COUNT TOTAL PLACES VISTED
+      const totalPlaces = await Post.find({ user: user._id })
+        .where("coordinate_status")
+        .ne(false)
+        .distinct("place");
+      placesVisited = totalPlaces.length;
+      //Count country visited
+      const countryVisitedCount = await Post.find({ user: user._id })
+        .where("coordinate_status")
+        .ne(false)
+        .populate("place")
+        .exec()
+        .then((posts) => {
+          const countryVisited = posts.map((post) => {
+            return post.place.address.country;
+          });
+          const uniqueCountryVisited = [...new Set(countryVisited)];
+          return uniqueCountryVisited.length;
+        });
+      // .distinct("place");
+      // const uniqueCount = new Set(countryVisitedCount.place).size;
+      if (countryVisitedCount > 1) {
+        countryVisited = countryVisitedCount - 1;
+      } else {
+        countryVisited = 0;
+      }
+    }
 
     return res.status(200).json({
       success: true,
       user,
       totalFollowing: authUser.totalFollowing,
       totalFollower: authUser.totalFollower,
+      totalPosts,
+      placesVisited,
+      countryVisited,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while viewing your profile";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -431,21 +476,21 @@ exports.viewOthersProfile = async (req, res) => {
     const profileUser = await User.findById(profileId);
     if (!profileUser) {
       errors.general = "User not found";
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: errors,
       });
     }
 
     if (profileUser.account_status === "deactivated") {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: "This account has been deactivated",
       });
     }
 
     if (profileUser.terminated) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: "This account has been terminated",
       });
@@ -460,11 +505,14 @@ exports.viewOthersProfile = async (req, res) => {
     return res.status(200).json({
       success: true,
       user: profileUser,
+      totalFollowing: authUser.totalFollowing,
+      totalFollower: authUser.totalFollower,
       isFollowed,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while viewing this user's profile";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -476,7 +524,7 @@ exports.viewAllPost = async (req, res) => {
   let errors = {};
   try {
     const profileId = req.params.id;
-    const { authUser, skip, limit } = req.body;
+    const { authUser, skip, limit, ip } = req.body;
 
     if (skip == null || limit == null) {
       errors.general = "Please provide skips and limits";
@@ -490,6 +538,10 @@ exports.viewAllPost = async (req, res) => {
     if (profileId.toString() === authUser._id.toString()) {
       //IF OWN PROFILE
       posts = await Post.find({})
+        .select(
+          "_id name user place content coordinate_status display_address_for_own_country updatedAt"
+        )
+        .populate("place", { address: 1 })
         .where("user")
         .equals(profileId)
         .sort({ updatedAt: -1 })
@@ -498,6 +550,11 @@ exports.viewAllPost = async (req, res) => {
     } else {
       //IF OTHERS PROFILE
       posts = await Post.find({})
+        .select(
+          "_id name user place content  display_address_for_own_country updatedAt"
+        )
+        // .lean()
+        .populate("place", { address: 1 })
         .where("user")
         .equals(profileId)
         .where("coordinate_status")
@@ -508,13 +565,46 @@ exports.viewAllPost = async (req, res) => {
     }
 
     if (posts.length === 0) {
-      (errors.general = "No post avialble"),
-        res.status(404).json({
-          success: false,
-          message: errors,
-          posts,
-        });
+      errors.general = "No post avialble";
+      return res.status(200).json({
+        success: true,
+        message: errors,
+        posts,
+      });
     }
+
+    let country = "";
+    const location = getCountry(ip);
+    if (location) {
+      country = location.country;
+    } else {
+      country = "IN";
+    }
+
+    posts.forEach((post) => {
+      // console.log("post1", post.display_address_for_own_country);
+      if (post.place.address.short_country == country) {
+        post.place.address.country = "";
+        post.place.local_address = post.display_address_for_own_country;
+      } else {
+        let state = "";
+        if (post.place.address.administrative_area_level_1 != null) {
+          state = post.place.address.administrative_area_level_1;
+        } else if (post.place.address.administrative_area_level_2 != null) {
+          state = post.place.address.administrative_area_level_2;
+        } else if (post.place.address.locality != null) {
+          state = post.place.address.locality;
+        } else if (post.place.address.sublocality_level_1 != null) {
+          state = post.place.address.sublocality_level_1;
+        } else if (post.place.address.sublocality_level_2 != null) {
+          state = post.place.address.sublocality_level_2;
+        } else if (post.place.address.neighborhood != null) {
+          state = post.place.address.neighborhood;
+        }
+
+        post.place.short_address = state + ", " + post.place.address.country;
+      }
+    });
 
     const totalCount = posts.length;
     const newSkip = skip + totalCount;
@@ -524,8 +614,9 @@ exports.viewAllPost = async (req, res) => {
       newSkip,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while viewing this user's posts";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -586,8 +677,9 @@ exports.followUnfollowUser = async (req, res) => {
       });
     }
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    consol.log(error.message);
+    errors.general = "SOmething went wrong while following this user";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -603,9 +695,10 @@ exports.uploadProfileImage = async (req, res) => {
     const { token } = req.headers;
     const decoded = await jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded._id);
+
     if (!user) {
       errors.general = "Unauthorized User";
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: errors,
       });
@@ -638,14 +731,15 @@ exports.uploadProfileImage = async (req, res) => {
 
     //delete file from server storage
     await unlinkFile(req.file.path);
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Profile uploaded successful",
       user,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while uploading profile image";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -661,7 +755,7 @@ exports.uploadCoverImage = async (req, res) => {
     const user = await User.findById(decoded._id);
     if (!user) {
       errors.general = "Unauthorized User";
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: errors,
       });
@@ -687,14 +781,15 @@ exports.uploadCoverImage = async (req, res) => {
 
     //delete file from server storage
     await unlinkFile(req.file.path);
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Cover uploaded successful",
       user,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while uploading cover image";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -728,13 +823,14 @@ exports.updatePassword = async (req, res) => {
     user.password = newPassword;
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Password has been updated successfully",
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while updating password";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -777,23 +873,24 @@ exports.resetPassword = async (req, res) => {
         message,
       });
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         message: "An otp has been sent to your registered email address",
         id: otp._id,
       });
     } catch (error) {
-      errors.general = error.message;
+      console.log(error.message);
+      errors.general = "Something went wrong while sending email";
       await otp.deleteOne();
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: errors,
       });
     }
   } catch (error) {
-    errors.general = error.message;
     console.log(error.message);
-    res.status(500).json({
+    errors.general = "Something went wrong while resetting password";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -835,7 +932,7 @@ exports.checkOtp = async (req, res) => {
     const user = await User.findById(otpTable.userId);
     if (!user) {
       errors.otp = "Please try again";
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: errors,
       });
@@ -846,13 +943,14 @@ exports.checkOtp = async (req, res) => {
 
     await otpTable.deleteOne();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       token: resetPasswordToken,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while checking otp";
+    return res.status(500).json({
       success: false,
       message: errors,
     });
@@ -895,14 +993,15 @@ exports.crateNewPassword = async (req, res) => {
     user.resetPasswordExpire = undefined;
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Your password has been successfully updated",
       user,
     });
   } catch (error) {
-    errors.general = error.message;
-    res.status(500).json({
+    console.log(error.message);
+    errors.general = "Something went wrong while creating new password";
+    return res.status(500).json({
       success: false,
       message: errors,
     });

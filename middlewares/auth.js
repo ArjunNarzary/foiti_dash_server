@@ -8,6 +8,7 @@ exports.isAuthenticated = async (req, res, next) => {
 
     if (!token) {
       errors.general = "Please login first";
+      console.log(errors);
       return res.status(401).json({
         success: false,
         message: errors,

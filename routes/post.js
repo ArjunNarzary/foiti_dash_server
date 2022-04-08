@@ -7,20 +7,26 @@ const {
   editPost,
   viewPost,
   savePost,
-  createContribution,
+  createContributionPoints,
+  randomPosts,
 } = require("../controllers/post");
 const { isAuthenticated } = require("../middlewares/auth");
 const router = express.Router();
 
 //Create Post
 router.route("/").post(isAuthenticated, upload.single("postImage"), createPost);
+// router.route("/").post(upload.single("postImage"), createPost);
 
 //Like POST
 router.route("/like/:id").get(isAuthenticated, likeUnlikePost);
 //Save and Unsave post
 router.route("/save/:id").get(isAuthenticated, savePost);
 
-router.route("/contribution").get(createContribution);
+router.route("/contribution/points").get(createContributionPoints);
+
+//GET RANDOM POST
+router.route("/random").post(isAuthenticated, randomPosts);
+
 //EDIT, VIEW and DELETE POST
 router
   .route("/:id")

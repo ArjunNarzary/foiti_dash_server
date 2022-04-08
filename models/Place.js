@@ -5,12 +5,14 @@ const placeSchema = new mongoose.Schema(
     name: {
       type: String,
       require: [true, "Name of place is required"],
+      index: true,
     },
     google_place_id: {
       type: String,
       index: true,
     },
     address: {
+      route: String,
       natural_feature: String,
       neighborhood: String,
       sublocality_level_2: String,
@@ -22,6 +24,8 @@ const placeSchema = new mongoose.Schema(
       short_country: String,
       postal_code: String,
     },
+    short_address: String,
+    local_address: String,
     coordinates: {
       lat: String,
       lng: String,
@@ -52,8 +56,19 @@ const placeSchema = new mongoose.Schema(
     website: String,
     direction_clicked: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        ceatedAt: {
+          type: Date,
+          default: Date.now,
+          immutable: true,
+        },
+        updateAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
     review_id: [
@@ -68,6 +83,26 @@ const placeSchema = new mongoose.Schema(
         ref: "Post",
       },
     ],
+    duplicate: {
+      type: Boolean,
+      default: false,
+    },
+    original_place_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Place",
+    },
+    duplicate_place_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Place",
+    },
+    created_place: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
