@@ -65,6 +65,23 @@ const postSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    direction_clicked: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        ceatedAt: {
+          type: Date,
+          default: Date.now,
+          immutable: true,
+        },
+        updateAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     status: {
       type: String,
       enum: ["silent", "active", "deactivated"],

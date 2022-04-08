@@ -414,12 +414,47 @@ exports.viewOwnProfile = async (req, res) => {
   try {
     const { authUser } = req.body;
     const user = authUser;
+    //COUNT TOTAL POST UPLOADS
+    const totalPosts = await Post.countDocuments({ user: user._id });
+    let placesVisited = 0;
+    let countryVisited = 0;
+    if (totalPosts != 0) {
+      //COUNT TOTAL PLACES VISTED
+      const totalPlaces = await Post.find({ user: user._id })
+        .where("coordinate_status")
+        .ne(false)
+        .distinct("place");
+      placesVisited = totalPlaces.length;
+      //Count country visited
+      const countryVisitedCount = await Post.find({ user: user._id })
+        .where("coordinate_status")
+        .ne(false)
+        .populate("place")
+        .exec()
+        .then((posts) => {
+          const countryVisited = posts.map((post) => {
+            return post.place.address.country;
+          });
+          const uniqueCountryVisited = [...new Set(countryVisited)];
+          return uniqueCountryVisited.length;
+        });
+      // .distinct("place");
+      // const uniqueCount = new Set(countryVisitedCount.place).size;
+      if (countryVisitedCount > 1) {
+        countryVisited = countryVisitedCount - 1;
+      } else {
+        countryVisited = 0;
+      }
+    }
 
     return res.status(200).json({
       success: true,
       user,
       totalFollowing: authUser.totalFollowing,
       totalFollower: authUser.totalFollower,
+      totalPosts,
+      placesVisited,
+      countryVisited,
     });
   } catch (error) {
     console.log(error.message);
@@ -470,6 +505,8 @@ exports.viewOthersProfile = async (req, res) => {
     return res.status(200).json({
       success: true,
       user: profileUser,
+      totalFollowing: authUser.totalFollowing,
+      totalFollower: authUser.totalFollower,
       isFollowed,
     });
   } catch (error) {
@@ -516,6 +553,7 @@ exports.viewAllPost = async (req, res) => {
         .select(
           "_id name user place content  display_address_for_own_country updatedAt"
         )
+        // .lean()
         .populate("place", { address: 1 })
         .where("user")
         .equals(profileId)
@@ -528,20 +566,43 @@ exports.viewAllPost = async (req, res) => {
 
     if (posts.length === 0) {
       errors.general = "No post avialble";
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         message: errors,
         posts,
       });
     }
 
-    const { country } = getCountry(ip);
-    console.log("country", country);
+    let country = "";
+    const location = getCountry(ip);
+    if (location) {
+      country = location.country;
+    } else {
+      country = "IN";
+    }
 
     posts.forEach((post) => {
-      console.log("post", post.display_address_for_own_country);
+      // console.log("post1", post.display_address_for_own_country);
       if (post.place.address.short_country == country) {
         post.place.address.country = "";
+        post.place.local_address = post.display_address_for_own_country;
+      } else {
+        let state = "";
+        if (post.place.address.administrative_area_level_1 != null) {
+          state = post.place.address.administrative_area_level_1;
+        } else if (post.place.address.administrative_area_level_2 != null) {
+          state = post.place.address.administrative_area_level_2;
+        } else if (post.place.address.locality != null) {
+          state = post.place.address.locality;
+        } else if (post.place.address.sublocality_level_1 != null) {
+          state = post.place.address.sublocality_level_1;
+        } else if (post.place.address.sublocality_level_2 != null) {
+          state = post.place.address.sublocality_level_2;
+        } else if (post.place.address.neighborhood != null) {
+          state = post.place.address.neighborhood;
+        }
+
+        post.place.short_address = state + ", " + post.place.address.country;
       }
     });
 

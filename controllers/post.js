@@ -9,18 +9,21 @@ const { uploadFile, deleteFile } = require("../utils/s3");
 const Post = require("../models/Post");
 const PostLike = require("../models/PostLike");
 const PlaceCreatedBy = require("../models/PlaceCreatedBy");
-const Contribution = require("../models/Contribution");
+const ContributionPoint = require("../models/ContributionPoint");
 const SavePostPlace = require("../models/SavePostPlace");
+const Contribution = require("../models/Contribution");
+const { getCountry } = require("../utils/getCountry");
 
-exports.createContribution = async (req, res) => {
+exports.createContributionPoints = async (req, res) => {
   try {
-    const contri = await Contribution.create({
-      place: 1,
-      post: 1,
-      comment: 1,
-      direction: 1,
-      feedback: 1,
-      share: 1,
+    const contri = await ContributionPoint.create({
+      place: 10,
+      added_place: 15,
+      photo: 5,
+      review: 10,
+      review_200_characters: 10,
+      rating: 1,
+      reports: 10,
     });
 
     res.json({
@@ -110,6 +113,7 @@ exports.createPost = async (req, res) => {
         address: details.address,
         coordinates: details.coordinates,
         types: details.types,
+        created_place: details.created_place,
       });
       newPlaceCreated = true;
     }
@@ -117,6 +121,7 @@ exports.createPost = async (req, res) => {
     if (!place) {
       errors.message = "Please try again after some time.";
       await unlinkFile(req.file.path);
+      //IF UPLOADED DELETE FROM S3
       if (resultThumb.Key || resultLarge.Key) {
         await deleteFile(resultThumb.Key);
         await deleteFile(resultLarge.Key);
@@ -177,6 +182,13 @@ exports.createPost = async (req, res) => {
     await place.save();
 
     //ADD PLACE IN PLACECREATEDBY TABLE AND CONTRIBUTION TABLE
+    //FIND CONTRIBUTION OR CREATE NEW
+    let contribution = await Contribution.findOne({ userId: user._id });
+    if (!contribution) {
+      contribution = await Contribution({ userId: user._id });
+    }
+
+    //IF IMAGE HAS COORDINATES
     if (
       post.content[0].coordinate.lat !== "" &&
       post.content[0].coordinate.lng !== ""
@@ -187,27 +199,30 @@ exports.createPost = async (req, res) => {
           place: place._id,
           user: user._id,
         });
-      }
-      let total = 0;
-      const contribution = await Contribution.findOne();
-      total = parseInt(contribution.post) + total;
-      if (newPlaceCreated) {
-        total = parseInt(contribution.place) + parseInt(total);
+
+        //ADD to contribution table
+        contribution.places.push(place._id);
       }
 
       //TODO::ADD COUNTRY VISITED
-      total = parseInt(user.total_contribution) + parseInt(total);
-      user.total_contribution = parseInt(total);
       if (!uploadedBefore) {
         user.visited.places = user.visited.places + 1;
       }
+      //ADD POST TO CONTRIBUTION TABLE
+      contribution.photos.push(post._id);
+
       user.total_uploads = user.total_uploads + 1;
       post.coordinate_status = true;
       await user.save();
     } else {
       post.coordinate_status = false;
     }
+
+    if (place.created_place) {
+      contribution.added_places.push(place._id);
+    }
     await post.save();
+    await contribution.save();
 
     //delete file from server storage
     await unlinkFile(req.file.path);
@@ -220,7 +235,14 @@ exports.createPost = async (req, res) => {
   } catch (error) {
     console.log(error);
     errors.general = error.message;
-    // await unlinkFile(req.file.path);
+    if (req.file) {
+      await unlinkFile(req.file.path);
+    }
+    //IF UPLOADED DELETE FROM S3
+    if (resultThumb.Key || resultLarge.Key) {
+      await deleteFile(resultThumb.Key);
+      await deleteFile(resultLarge.Key);
+    }
     return res.status(500).json({
       success: false,
       error: errors,
@@ -386,7 +408,7 @@ exports.viewPost = async (req, res) => {
     const postId = req.params.id;
     const { authUser } = req.body;
 
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate("user").populate("place");
 
     if (!post || post.status === "deactivated") {
       errors.general = "Post not found";
@@ -520,6 +542,80 @@ exports.savePost = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "You have successfully save the post",
+    });
+  } catch (error) {
+    errors.general = error.message;
+    res.status(500).json({
+      success: false,
+      error: errors,
+    });
+  }
+};
+
+//GET RANDOM POSTS
+exports.randomPosts = async (req, res) => {
+  let errors = {};
+  try {
+    const { ip, authUser } = req.body;
+    const posts = await Post.find({
+      status: "active",
+      coordinate_status: true,
+    })
+      .where("user")
+      .ne(authUser._id)
+      .populate("place");
+
+    if (!posts) {
+      errors.general = "No posts found";
+      res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    const randomPosts = [];
+    for (let i = 0; i < 20; i++) {
+      const randomIndex = Math.floor(Math.random() * posts.length);
+      const post = posts[randomIndex];
+      randomPosts.push(post);
+    }
+
+    let country = "";
+    const location = getCountry(ip);
+    if (location) {
+      country = location.country;
+    } else {
+      country = "IN";
+    }
+
+    randomPosts.forEach((post) => {
+      // console.log("post1", post.display_address_for_own_country);
+      if (post.place.address.short_country == country) {
+        post.place.address.country = "";
+        post.place.local_address = post.display_address_for_own_country;
+      } else {
+        let state = "";
+        if (post.place.address.administrative_area_level_1 != null) {
+          state = post.place.address.administrative_area_level_1;
+        } else if (post.place.address.administrative_area_level_2 != null) {
+          state = post.place.address.administrative_area_level_2;
+        } else if (post.place.address.locality != null) {
+          state = post.place.address.locality;
+        } else if (post.place.address.sublocality_level_1 != null) {
+          state = post.place.address.sublocality_level_1;
+        } else if (post.place.address.sublocality_level_2 != null) {
+          state = post.place.address.sublocality_level_2;
+        } else if (post.place.address.neighborhood != null) {
+          state = post.place.address.neighborhood;
+        }
+
+        post.place.short_address = state + ", " + post.place.address.country;
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      randomPosts,
     });
   } catch (error) {
     errors.general = error.message;

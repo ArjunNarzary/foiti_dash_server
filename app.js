@@ -20,6 +20,7 @@ app.use(cors());
 const user = require("./routes/user");
 const image = require("./routes/image");
 const post = require("./routes/post");
+const place = require("./routes/place");
 const feedback = require("./routes/feedback");
 const versionUrl = "/api/v1";
 
@@ -28,5 +29,6 @@ app.use(`${versionUrl}/user`, user);
 app.use(`${versionUrl}/image`, image);
 app.use(`${versionUrl}/post`, post);
 app.use(`${versionUrl}/feedback`, feedback);
+app.use(`${versionUrl}/place`, place);
 
 module.exports = app;
