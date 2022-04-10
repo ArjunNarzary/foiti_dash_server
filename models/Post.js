@@ -84,7 +84,7 @@ const postSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ["silent", "active", "deactivated"],
+      enum: ["silent", "active", "deactivated", "blocked"],
     },
     terminated: {
       type: Boolean,

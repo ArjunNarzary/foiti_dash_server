@@ -415,37 +415,74 @@ exports.viewOwnProfile = async (req, res) => {
     const { authUser } = req.body;
     const user = authUser;
     //COUNT TOTAL POST UPLOADS
-    const totalPosts = await Post.countDocuments({ user: user._id });
-    let placesVisited = 0;
-    let countryVisited = 0;
-    if (totalPosts != 0) {
-      //COUNT TOTAL PLACES VISTED
-      const totalPlaces = await Post.find({ user: user._id })
-        .where("coordinate_status")
-        .ne(false)
-        .distinct("place");
-      placesVisited = totalPlaces.length;
-      //Count country visited
-      const countryVisitedCount = await Post.find({ user: user._id })
+    const posts = await Post.find({ user: user._id }).populate("place");
+    // let placesVisited = 0;
+    // let countryVisited = 0;
+    // if (totalPosts != 0) {
+    //   //COUNT TOTAL PLACES VISTED
+    //   const totalPlaces = await Post.find({ user: user._id })
+    //     .where("coordinate_status")
+    //     .ne(false)
+    //     .distinct("place");
+    //   placesVisited = totalPlaces.length;
+    //   //Count country visited
+    //   const countryVisitedCount = await Post.find({ user: user._id })
+    //     .where("coordinate_status")
+    //     .ne(false)
+    //     .populate("place")
+    //     .exec()
+    //     .then((posts) => {
+    //       const countryVisited = posts.map((post) => {
+    //         return post.place.address.country;
+    //       });
+    //       const uniqueCountryVisited = [...new Set(countryVisited)];
+    //       return uniqueCountryVisited.length;
+    //     });
+    //   // .distinct("place");
+    //   // const uniqueCount = new Set(countryVisitedCount.place).size;
+    //   if (countryVisitedCount > 1) {
+    //     countryVisited = countryVisitedCount - 1;
+    //   } else {
+    //     countryVisited = 0;
+    //   }
+    // }
+
+    const totalPosts = posts.length;
+    const post1 = await Post.find({ user: user._id })
         .where("coordinate_status")
         .ne(false)
         .populate("place")
-        .exec()
-        .then((posts) => {
-          const countryVisited = posts.map((post) => {
-            return post.place.address.country;
-          });
-          const uniqueCountryVisited = [...new Set(countryVisited)];
-          return uniqueCountryVisited.length;
-        });
-      // .distinct("place");
-      // const uniqueCount = new Set(countryVisitedCount.place).size;
-      if (countryVisitedCount > 1) {
-        countryVisited = countryVisitedCount - 1;
-      } else {
-        countryVisited = 0;
-      }
+    //Unique Place
+    const totalPlaces = post1.map((post) => {
+      return post.place._id;
+    });
+
+    const uniquePlacesVisited = [...new Set(totalPlaces)];
+    const placesVisited = uniquePlacesVisited.length;
+
+    //Country Visited
+    let countryVisited = 0;
+    const totalCountries = post1.map((post) => {
+      return post.place.address.country;
+    });
+    const uniqueCountryVisited = [...new Set(totalCountries)];
+
+    const countryVisitedCount = uniqueCountryVisited.length;
+
+    if (countryVisitedCount > 1) {
+      countryVisited = countryVisitedCount - 1;
+    } else {
+      countryVisited = 0;
     }
+
+
+    // Make name first letter capital
+    // const name = user.name;
+    // const nameArray = name.split(" ");
+    // const capitalizedName = nameArray.map((name) => {
+    //   return name.charAt(0).toUpperCase() + name.slice(1);
+    // })
+    // user.name = capitalizedName.join(" ");
 
     return res.status(200).json({
       success: true,
@@ -502,12 +539,56 @@ exports.viewOthersProfile = async (req, res) => {
       isFollowed = true;
     }
 
+    //TOTOAL NUMBER
+    const posts = await Post.find({ user: profileUser._id })
+      .or([{ 'status': 'active' }, { 'status': 'silent' }])
+      .where('coordinate_status').ne(false)
+      .where('terminated').ne(true)
+      .populate("place");
+
+    const totalPosts = posts.length;
+    //Unique Place
+    const totalPlaces = posts.map((post) => {
+            return post.place._id;
+          });
+    const uniquePlacesVisited = [...new Set(totalPlaces)];
+    const placesVisited = uniquePlacesVisited.length;
+
+    //Country Visited
+    let countryVisited = 0;
+    const totalCountries = posts.map((post) => {
+          return post.place.address.country;
+        });
+    const uniqueCountryVisited = [...new Set(totalCountries)];
+    
+    const countryVisitedCount =  uniqueCountryVisited.length;
+
+    if (countryVisitedCount > 1) {
+        countryVisited = countryVisitedCount - 1;
+      } else {
+        countryVisited = 0;
+      }
+
+
+    // Make name first letter capital
+    // const name = profileUser.name;
+    // const nameArray = name.split(" ");
+    // const capitalizedName = nameArray.map((name) => {
+    //   return name.charAt(0).toUpperCase() + name.slice(1);
+    // })
+    // profileUser.name = capitalizedName.join(" ");
+
+
+
     return res.status(200).json({
       success: true,
       user: profileUser,
       totalFollowing: authUser.totalFollowing,
       totalFollower: authUser.totalFollower,
       isFollowed,
+      totalPosts,
+      placesVisited,
+      countryVisited,
     });
   } catch (error) {
     console.log(error.message);
@@ -524,7 +605,7 @@ exports.viewAllPost = async (req, res) => {
   let errors = {};
   try {
     const profileId = req.params.id;
-    const { authUser, skip, limit, ip } = req.body;
+    const { authUser, skip, limit, ip, showGeoPost } = req.body;
 
     if (skip == null || limit == null) {
       errors.general = "Please provide skips and limits";
@@ -541,28 +622,49 @@ exports.viewAllPost = async (req, res) => {
         .select(
           "_id name user place content coordinate_status display_address_for_own_country updatedAt"
         )
-        .populate("place", { address: 1 })
+        .populate("place")
         .where("user")
         .equals(profileId)
-        .sort({ updatedAt: -1 })
+        .sort({ createdAt: -1 })
         .skip(parseInt(skip))
         .limit(parseInt(limit));
     } else {
       //IF OTHERS PROFILE
-      posts = await Post.find({})
-        .select(
-          "_id name user place content  display_address_for_own_country updatedAt"
-        )
-        // .lean()
-        .populate("place", { address: 1 })
-        .where("user")
-        .equals(profileId)
-        .where("coordinate_status")
-        .equals(true)
-        .sort({ updatedAt: -1 })
-        .skip(parseInt(skip))
-        .limit(parseInt(limit));
-    }
+      if (showGeoPost){
+        posts = await Post.find({})
+          .select(
+            "_id name user place content  display_address_for_own_country updatedAt"
+          )
+          .where("user")
+          .equals(profileId)
+          .populate("place")
+          .or([{ 'status': 'active' }, { 'status': 'silent' }])
+          .where('terminated').ne(true)
+          .sort({ createdAt: -1 })
+          .skip(parseInt(skip))
+          .limit(parseInt(limit));
+      }else{
+        posts = await Post.find({})
+          .select(
+            "_id name user place content  display_address_for_own_country updatedAt"
+          )
+          .where("user")
+          .equals(profileId)
+          .or([{ 'status': 'active' }, { 'status': 'silent' }])
+          .where('coordinate_status').ne(false)
+          .where('terminated').ne(true)
+          .populate("place")
+          .sort({ createdAt: -1 })
+          .skip(parseInt(skip))
+          .limit(parseInt(limit));
+        }
+      }
+
+    postsCount = await Post.countDocuments({})
+      .where("user")
+      .equals(profileId)
+      .or([{ 'status': 'active' }, { 'status': 'silent' }])
+      .where('terminated').ne(true);
 
     if (posts.length === 0) {
       errors.general = "No post avialble";
@@ -575,7 +677,8 @@ exports.viewAllPost = async (req, res) => {
 
     let country = "";
     const location = getCountry(ip);
-    if (location) {
+
+    if (location != null && location.country !== undefined) {
       country = location.country;
     } else {
       country = "IN";
@@ -612,6 +715,7 @@ exports.viewAllPost = async (req, res) => {
     return res.status(200).json({
       posts,
       newSkip,
+      postsCount,
     });
   } catch (error) {
     console.log(error.message);
@@ -671,14 +775,16 @@ exports.followUnfollowUser = async (req, res) => {
         following: owner._id,
       });
 
+
+
       return res.status(200).json({
         success: true,
         message: `You are now following ${owner.name}`,
       });
     }
   } catch (error) {
-    consol.log(error.message);
-    errors.general = "SOmething went wrong while following this user";
+    console.log(error.message);
+    errors.general = "Something went wrong while following this user";
     return res.status(500).json({
       success: false,
       message: errors,
@@ -708,7 +814,7 @@ exports.uploadProfileImage = async (req, res) => {
     const sharpLarge = await sharp(req.file.path).resize(200).toBuffer();
     const resultLarge = await uploadFile(req.file, sharpLarge);
     //Resize Image for thumbnail
-    const sharpThumb = await sharp(req.file.path).resize(50).toBuffer();
+    const sharpThumb = await sharp(req.file.path).resize(100).toBuffer();
     const resultThumb = await uploadFile(req.file, sharpThumb);
 
     //If not empty delete file from S3
@@ -836,6 +942,38 @@ exports.updatePassword = async (req, res) => {
     });
   }
 };
+
+//VIEW FOLLOW DETAILS
+exports.viewFollowDetails = async (req, res) => {
+  let errors = {};
+  try {
+    const ownerId = req.params.id;
+
+    const owner = await User.findById(ownerId).select("_id, name, following, follower")
+                  .populate('following', { name: 1, total_contribution:1, profileImage:1, _id:1})
+                  .populate('follower', { name: 1, total_contribution: 1, profileImage: 1, _id: 1 });
+    if(!owner){
+      errors.general = "User not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      owner
+    })
+
+  } catch (error) {
+    console.log(error.message);
+    errors.general = "Something went wrong";
+    return res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+}
 
 //RESET PASSWORD (SENT OTP AT EMAIL)
 exports.resetPassword = async (req, res) => {
@@ -1007,3 +1145,5 @@ exports.crateNewPassword = async (req, res) => {
     });
   }
 };
+
+

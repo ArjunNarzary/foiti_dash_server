@@ -23,6 +23,7 @@ const placeSchema = new mongoose.Schema(
       country: String,
       short_country: String,
       postal_code: String,
+      premise: String,
     },
     short_address: String,
     local_address: String,

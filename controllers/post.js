@@ -204,14 +204,17 @@ exports.createPost = async (req, res) => {
         contribution.places.push(place._id);
       }
 
-      //TODO::ADD COUNTRY VISITED
-      if (!uploadedBefore) {
-        user.visited.places = user.visited.places + 1;
-      }
+      // if (!uploadedBefore) {
+      //   user.visited.places = user.visited.places + 1;
+      // }
+      //ADD SINGLE CONTRIBUTION TO USER table
+      let count = parseInt(user.total_contribution) || 0;
+      count = count + 1;
+      user.total_contribution = count;
       //ADD POST TO CONTRIBUTION TABLE
       contribution.photos.push(post._id);
 
-      user.total_uploads = user.total_uploads + 1;
+      // user.total_uploads = user.total_uploads + 1;
       post.coordinate_status = true;
       await user.save();
     } else {
@@ -557,10 +560,10 @@ exports.randomPosts = async (req, res) => {
   let errors = {};
   try {
     const { ip, authUser } = req.body;
-    const posts = await Post.find({
-      status: "active",
-      coordinate_status: true,
-    })
+    const posts = await Post.find({})
+      .or([{ 'status': 'active' }, { 'status': 'silent' }])
+      .where('coordinate_status').ne(false)
+      .where('terminated').ne(true)
       .where("user")
       .ne(authUser._id)
       .populate("place");
@@ -581,8 +584,8 @@ exports.randomPosts = async (req, res) => {
     }
 
     let country = "";
-    const location = getCountry(ip);
-    if (location) {
+    const location = await getCountry(ip);
+    if (location != null && location.country !== undefined ) {
       country = location.country;
     } else {
       country = "IN";

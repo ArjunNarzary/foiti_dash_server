@@ -19,6 +19,7 @@ const {
   updateUsername,
   updateEmail,
   updatePhone,
+  viewFollowDetails,
 } = require("../controllers/user");
 const { validateUser } = require("../middlewares/validations/userValidator");
 
@@ -75,10 +76,13 @@ router
   .post(validateUser("checkotp"), checkOtp)
   .put(validateUser("newPassword"), crateNewPassword);
 
-//FOLLOW UNFOLLOW USER
+//FOLLOW UNFOLLOW VIEW OTHERS PROFILE USER
 router
   .route("/:id")
   .post(isAuthenticated, followUnfollowUser)
   .get(isAuthenticated, viewOthersProfile);
+
+  router.route("/followDetails/:id")
+        .get(isAuthenticated, viewFollowDetails);
 
 module.exports = router;
