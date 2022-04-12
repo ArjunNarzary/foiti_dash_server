@@ -1,5 +1,6 @@
 const { validationResult } = require("express-validator");
 const Place = require("../models/Place");
+const Post = require("../models/Post");
 const Review = require("../models/Review");
 
 function createError(errors, validate) {
@@ -8,16 +9,15 @@ function createError(errors, validate) {
   return errors;
 }
 
+//Search places
 exports.searchPlace = async (req, res) => {
   try {
     const { place, count } = req.query;
-    // console.log(place);
+    const trimedPlace = place.trim();
 
     const results = await Place.find({
-      name: { $regex: `${place}`, $options: "i" },
+      name: { $regex: `${trimedPlace}`, $options: "i" },
     }).limit(count);
-
-    console.log(results);
 
     return res.status(200).json({
       success: true,
@@ -31,11 +31,35 @@ exports.searchPlace = async (req, res) => {
   }
 };
 
+//Autocomplete places
+exports.autocompletePlace = async (req, res) => {
+  try {
+    const { place, count } = req.query;
+    const trimedPlace = place.trim();
+
+    const results = await Place.find({
+      name: { $regex: `${trimedPlace}`, $options: "i" },
+    }).select("_id name address cover_photo").limit(count);
+
+    return res.status(200).json({
+      success: true,
+      results,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 exports.getPlace = async (req, res) => {
   let errors = {};
   try {
     const { place_id } = req.params;
-    const place = await Place.findById(place_id);
+    const place = await Place.findById(place_id).populate('review_id');
+    // place.totalRating = 
 
     if (!place) {
       errors.place = "Place not found";
@@ -45,9 +69,23 @@ exports.getPlace = async (req, res) => {
       });
     }
 
+    // format Type
+    let formattedType = "";
+    if (place.types.length > 0) {
+      let type = place.types[0];
+      const typeArr = type.split("_");
+      const capitalizedType = typeArr.map((type) => {
+        return type.charAt(0).toUpperCase() + type.slice(1);
+      });
+      formattedType = capitalizedType.join(" ");
+    }
+
+
     return res.status(200).json({
       success: true,
       place,
+      formattedType,
+      avgRating: place.avgRating,
     });
   } catch (error) {
     errors.general = "Something went wrong";
@@ -121,3 +159,114 @@ exports.addEditReview = async (req, res) => {
     });
   }
 };
+
+exports.getPlacePosts = async (req, res) => {
+ let errors = {};
+  try {
+    const { place_id } = req.params
+    let { authUser, skip, limit, extraSkip } = req.body;
+
+    const place = await Place.findById(place_id);
+    if(!place){
+      errors.place = "Place not found";
+      return res.status(404).json({
+        success: false,
+        error: errors,
+      });
+    }
+
+    console.log(place);
+
+    let posts = await Post.find({})
+                  .where("place").equals(place_id)
+                  // .where("status").equals("active")
+                  .where("coordinate_status").equals(true)
+                  .sort({ createdAt: -1 })
+                  .limit(limit)
+                  .skip(skip);
+
+  let extra = false;
+  if(posts.length === 0){
+    extra = true;
+    if(place.types[0] === "country"){
+      posts = await Post.find({})
+        .populate('place')
+        // .where("status").equals("active")
+        .where("coordinate_status").equals(true)
+        .where("place.address.country").equals(place.address.country)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip(extraSkip);
+    } else if (place.types[0] === "administrative_area_level_1"){
+      posts = await Post.find({})
+        .populate('place')
+        // .where("status").equals("active")
+        .where("coordinate_status").equals(true)
+        .where("place.address.administrative_area_level_1").equals(place.address.administrative_area_level_1)
+        .where("place.address.country").equals(place.address.country)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip(extraSkip);
+    } else if (place.types[0] === "administrative_area_level_2") {
+      posts = await Post.find({})
+        .populate('place')
+        // .where("status").equals("active")
+        .where("coordinate_status").equals(true)
+        .where("place.address.administrative_area_level_2").equals(place.address.administrative_area_level_2)
+        .where("place.address.administrative_area_level_1").equals(place.address.administrative_area_level_1)
+        .where("place.address.country").equals(place.address.country)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip(extraSkip);
+    } else if (place.types[0] === "locality"){
+      if (place.address.administrative_area_level_2 != "" || place.address.administrative_area_level_2 !== undefined){
+        posts = await Post.find({})
+          .populate('place')
+          // .where("status").equals("active")
+          .where("coordinate_status").equals(true)
+          .where("place.address.locality").equals(place.address.locality)
+          .where("place.address.administrative_area_level_2").equals(place.address.administrative_area_level_2)
+          .where("place.address.administrative_area_level_1").equals(place.address.administrative_area_level_1)
+          .where("place.address.country").equals(place.address.country)
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .skip(extraSkip);
+      }else{
+        posts = await Post.find({})
+          .populate('place')
+          .where("status").equals("active")
+          // .where("coordinate_status").equals(true)
+          .where("place.address.locality").equals(place.address.locality)
+          .where("place.address.administrative_area_level_1").equals(place.address.administrative_area_level_1)
+          .where("place.address.country").equals(place.address.country)
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .skip(extraSkip);
+      }
+    }
+  }
+
+  if(extra){
+    extraSkip = extraSkip + posts.length;
+  }else{
+    skip = skip + posts.length;
+  }
+
+  // const newSkip = skip + posts.length - 1;
+
+  return res.status(200).json({
+    success: true,
+    posts,
+    skip,
+    extraSkip,
+  })
+
+  } catch (error) {
+    console.log(error);
+    errors.general = "Something went wrong";
+    return res.status(500).json({
+      success: false,
+      error: errors,
+    });
+  }
+}

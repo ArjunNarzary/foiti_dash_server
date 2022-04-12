@@ -3,14 +3,18 @@ const {
   searchPlace,
   getPlace,
   addEditReview,
+  autocompletePlace,
+  getPlacePosts,
 } = require("../controllers/place");
 const router = express.Router();
 
 const { isAuthenticated } = require("../middlewares/auth");
 const { validatePlace } = require("../middlewares/validations/placeValidator");
 
-//Create Post
+//Search Places
 router.route("/search").get(isAuthenticated, searchPlace);
+//Autocomplete Places
+router.route("/autocomplete/search").get(isAuthenticated, autocompletePlace);
 
 //ADD, edit and Delete REVIEW
 router
@@ -18,6 +22,8 @@ router
   .post(isAuthenticated, validatePlace("addReview"), addEditReview);
 
 //GET PLACE
-router.route("/:place_id").get(isAuthenticated, getPlace);
+router.route("/:place_id")
+      .get(isAuthenticated, getPlace)
+      .post(isAuthenticated, getPlacePosts);
 
 module.exports = router;

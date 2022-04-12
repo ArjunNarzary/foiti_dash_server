@@ -745,8 +745,8 @@ exports.followUnfollowUser = async (req, res) => {
     }
 
     //Already followed than unfollow
-    if (owner.follower.includes(authUser._id)) {
-      const index = owner.follower.indexOf(authUser.id);
+    if (owner.follower.includes(user._id)) {
+      const index = owner.follower.indexOf(user.id);
       owner.follower.splice(index, 1);
       await owner.save();
 
@@ -950,8 +950,8 @@ exports.viewFollowDetails = async (req, res) => {
     const ownerId = req.params.id;
 
     const owner = await User.findById(ownerId).select("_id, name, following, follower")
-                  .populate('following', { name: 1, total_contribution:1, profileImage:1, _id:1})
-                  .populate('follower', { name: 1, total_contribution: 1, profileImage: 1, _id: 1 });
+        .populate('following', { name: 1, total_contribution:1, profileImage:1, _id:1, follower:1, following:1})
+      .populate('follower', { name: 1, total_contribution: 1, profileImage: 1, _id: 1, follower: 1, following: 1 });
     if(!owner){
       errors.general = "User not found";
       return res.status(404).json({

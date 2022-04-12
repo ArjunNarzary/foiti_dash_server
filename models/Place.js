@@ -11,20 +11,21 @@ const placeSchema = new mongoose.Schema(
       type: String,
       index: true,
     },
-    address: {
-      route: String,
-      natural_feature: String,
-      neighborhood: String,
-      sublocality_level_2: String,
-      sublocality_level_1: String,
-      locality: String,
-      administrative_area_level_2: String,
-      administrative_area_level_1: String,
-      country: String,
-      short_country: String,
-      postal_code: String,
-      premise: String,
-    },
+    // address: {
+    //   route: String,
+    //   natural_feature: String,
+    //   neighborhood: String,
+    //   sublocality_level_2: String,
+    //   sublocality_level_1: String,
+    //   locality: String,
+    //   administrative_area_level_2: String,
+    //   administrative_area_level_1: String,
+    //   country: String,
+    //   short_country: String,
+    //   postal_code: String,
+    //   premise: String,
+    // },
+    address:{},
     short_address: String,
     local_address: String,
     coordinates: {
@@ -105,7 +106,20 @@ const placeSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
-);
+  { timestamps: true });
+
+
+//CALCULATE AVG RATING
+placeSchema.virtual("avgRating").get(function () {
+  if (this.review_id.length > 0) {
+    let sum = 0;
+    for (let i = 0; i < this.review_id.length; i++) {
+      sum += this.review_id[i].rating;
+    }
+    return sum / this.review_id.length;
+  }else{
+    return 0;
+  }
+});
 
 module.exports = mongoose.model("Place", placeSchema);

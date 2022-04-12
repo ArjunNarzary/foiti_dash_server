@@ -555,18 +555,48 @@ exports.savePost = async (req, res) => {
   }
 };
 
+//RANDOMIZE ARRAY
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
 //GET RANDOM POSTS
+let call = 1;
 exports.randomPosts = async (req, res) => {
   let errors = {};
   try {
-    const { ip, authUser } = req.body;
-    const posts = await Post.find({})
-      .or([{ 'status': 'active' }, { 'status': 'silent' }])
-      .where('coordinate_status').ne(false)
-      .where('terminated').ne(true)
-      .where("user")
-      .ne(authUser._id)
-      .populate("place");
+    const { ip, authUser, skip, limit } = req.body;
+    let posts
+    if(skip === undefined || skip === null){
+      //Random post form post screen, showing others post
+      posts = await Post.find({})
+        // .or([{ 'status': 'active' }, { 'status': 'silent' }])
+        .where('status').equals('active')
+        .where('coordinate_status').ne(false)
+        .where('terminated').ne(true)
+        .where("user")
+        .ne(authUser._id)
+        .populate("place")
+        .limit(500)
+        .sort({ createdAt: -1 });
+    }else{
+      //Random post form explorer screen, showing all posts
+      posts = await Post.find({})
+        // .or([{ 'status': 'active' }, { 'status': 'silent' }])
+        .where('status').equals('active')
+        .where('coordinate_status').ne(false)
+        .where('terminated').ne(true)
+        .where("user")
+        .ne(authUser._id)
+        .populate("place")
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+    }
 
     if (!posts) {
       errors.general = "No posts found";
@@ -576,12 +606,24 @@ exports.randomPosts = async (req, res) => {
       });
     }
 
-    const randomPosts = [];
-    for (let i = 0; i < 20; i++) {
-      const randomIndex = Math.floor(Math.random() * posts.length);
-      const post = posts[randomIndex];
-      randomPosts.push(post);
+    let skipData = 0;
+    let maxRandom = 10;
+    if (skip !== undefined && skip !== null) {
+      skipData = parseInt(skip) + posts.length;
+      maxRandom = posts.length;
     }
+
+
+    let randomPosts = [];
+    //SUFFLE ARRAY
+    if (posts.length > 0) {
+      randomPosts = shuffleArray(posts);
+    }
+    // for (let i = 0; i < maxRandom; i++) {
+    //   const randomIndex = Math.floor(Math.random() * posts.length);
+    //   const post = posts[randomIndex];
+    //   randomPosts.push(post);
+    // }
 
     let country = "";
     const location = await getCountry(ip);
@@ -619,8 +661,10 @@ exports.randomPosts = async (req, res) => {
     res.status(200).json({
       success: true,
       randomPosts,
+      skipData
     });
   } catch (error) {
+    console.log(error);
     errors.general = error.message;
     res.status(500).json({
       success: false,
