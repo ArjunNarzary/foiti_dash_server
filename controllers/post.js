@@ -97,7 +97,8 @@ exports.createPost = async (req, res) => {
 
     //Resize Image for thumbnail
     const sharpThumb = await sharp(req.file.path)
-      .resize(500, 500, { fit: "cover" })
+      // .resize(500, 500, { fit: "cover" })
+      .resize(500)
       .withMetadata()
       .toBuffer();
     const resultThumb = await uploadFile(req.file, sharpThumb);
@@ -570,26 +571,32 @@ exports.randomPosts = async (req, res) => {
   let errors = {};
   try {
     const { ip, authUser, skip, limit } = req.body;
-    let posts
-    if(skip === undefined || skip === null){
+    let posts;
+    if (skip === undefined || skip === null) {
       //Random post form post screen, showing others post
       posts = await Post.find({})
         // .or([{ 'status': 'active' }, { 'status': 'silent' }])
-        .where('status').equals('active')
-        .where('coordinate_status').ne(false)
-        .where('terminated').ne(true)
+        .where("status")
+        .equals("active")
+        .where("coordinate_status")
+        .ne(false)
+        .where("terminated")
+        .ne(true)
         .where("user")
         .ne(authUser._id)
         .populate("place")
         .limit(500)
         .sort({ createdAt: -1 });
-    }else{
+    } else {
       //Random post form explorer screen, showing all posts
       posts = await Post.find({})
         // .or([{ 'status': 'active' }, { 'status': 'silent' }])
-        .where('status').equals('active')
-        .where('coordinate_status').ne(false)
-        .where('terminated').ne(true)
+        .where("status")
+        .equals("active")
+        .where("coordinate_status")
+        .ne(false)
+        .where("terminated")
+        .ne(true)
         .where("user")
         .ne(authUser._id)
         .populate("place")
@@ -613,7 +620,6 @@ exports.randomPosts = async (req, res) => {
       maxRandom = posts.length;
     }
 
-
     let randomPosts = [];
     //SUFFLE ARRAY
     if (posts.length > 0) {
@@ -627,7 +633,7 @@ exports.randomPosts = async (req, res) => {
 
     let country = "";
     const location = await getCountry(ip);
-    if (location != null && location.country !== undefined ) {
+    if (location != null && location.country !== undefined) {
       country = location.country;
     } else {
       country = "IN";
@@ -661,7 +667,7 @@ exports.randomPosts = async (req, res) => {
     res.status(200).json({
       success: true,
       randomPosts,
-      skipData
+      skipData,
     });
   } catch (error) {
     console.log(error);
