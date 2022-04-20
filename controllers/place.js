@@ -180,7 +180,6 @@ exports.getPlacePosts = async (req, res) => {
     let posts = [];
 
     if (place.types[0] === "country") {
-      console.log("country");
       const places = await Place.find({})
         .where("address.country")
         .equals(place.address.country)
@@ -192,7 +191,6 @@ exports.getPlacePosts = async (req, res) => {
           });
         });
     } else if (place.types[0] === "administrative_area_level_1") {
-      console.log("administrative_area_level_1");
       const places = await Place.find({})
         .where("address.administrative_area_level_1")
         .equals(place.address.administrative_area_level_1)
@@ -206,7 +204,6 @@ exports.getPlacePosts = async (req, res) => {
           });
         });
     } else if (place.types[0] === "administrative_area_level_2") {
-      console.log("administrative_area_level_2");
       const places = await Place.find({})
         .where("address.administrative_area_level_2")
         .equals(place.address.administrative_area_level_2)
@@ -226,7 +223,6 @@ exports.getPlacePosts = async (req, res) => {
         place.address.administrative_area_level_2 != "" ||
         place.address.administrative_area_level_2 !== undefined
       ) {
-        console.log("locality");
         const places = await Place.find({})
           .where("address.locality")
           .equals(place.address.locality)
@@ -244,7 +240,6 @@ exports.getPlacePosts = async (req, res) => {
             });
           });
       } else {
-        console.log("locality");
         const places = await Place.find({})
           .where("address.locality")
           .equals(place.address.locality)
@@ -261,7 +256,6 @@ exports.getPlacePosts = async (req, res) => {
           });
       }
     } else {
-      console.log("neighborhood");
       posts = await Post.find({})
         .where("place")
         .equals(place_id)

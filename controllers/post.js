@@ -144,6 +144,8 @@ exports.createPost = async (req, res) => {
       uploadedBefore = true;
     }
 
+    let contributionCount = 0;
+
     //CREATE POST AND UPDATE PLACE TABLE
     // let status = false;
     // if (user.account_status === "active") {
@@ -203,17 +205,12 @@ exports.createPost = async (req, res) => {
 
         //ADD to contribution table
         contribution.places.push(place._id);
+        contributionCount = contributionCount + 1;
       }
 
-      // if (!uploadedBefore) {
-      //   user.visited.places = user.visited.places + 1;
-      // }
-      //ADD SINGLE CONTRIBUTION TO USER table
-      let count = parseInt(user.total_contribution) || 0;
-      count = count + 1;
-      user.total_contribution = count;
       //ADD POST TO CONTRIBUTION TABLE
       contribution.photos.push(post._id);
+      contributionCount = contributionCount + 1;
 
       // user.total_uploads = user.total_uploads + 1;
       post.coordinate_status = true;
@@ -222,9 +219,11 @@ exports.createPost = async (req, res) => {
       post.coordinate_status = false;
     }
 
-    if (place.created_place) {
-      contribution.added_places.push(place._id);
-    }
+    //ADD CONTRIBUTION TO USER table
+    let count = parseInt(user.total_contribution) || 0;
+    user.total_contribution = count + contributionCount;
+    user.save();
+
     await post.save();
     await contribution.save();
 
@@ -410,7 +409,8 @@ exports.viewPost = async (req, res) => {
   let errors = {};
   try {
     const postId = req.params.id;
-    const { authUser } = req.body;
+    const { authUser, ip } = req.body;
+    console.log(ip);
 
     const post = await Post.findById(postId).populate("user").populate("place");
 
@@ -427,12 +427,43 @@ exports.viewPost = async (req, res) => {
       liked = true;
     }
 
+    let country = "";
+    const location = await getCountry(ip);
+    if (location != null && location.country !== undefined) {
+      country = location.country;
+    } else {
+      country = "IN";
+    }
+
+      if (post.place.address.short_country == country) {
+        post.place.address.country = "";
+        post.place.local_address = post.display_address_for_own_country;
+      } else {
+        let state = "";
+        if (post.place.address.administrative_area_level_1 != null) {
+          state = post.place.address.administrative_area_level_1;
+        } else if (post.place.address.administrative_area_level_2 != null) {
+          state = post.place.address.administrative_area_level_2;
+        } else if (post.place.address.locality != null) {
+          state = post.place.address.locality;
+        } else if (post.place.address.sublocality_level_1 != null) {
+          state = post.place.address.sublocality_level_1;
+        } else if (post.place.address.sublocality_level_2 != null) {
+          state = post.place.address.sublocality_level_2;
+        } else if (post.place.address.neighborhood != null) {
+          state = post.place.address.neighborhood;
+        }
+
+        post.place.short_address = state + ", " + post.place.address.country;
+      }
+
     return res.status(200).json({
       success: true,
       post,
       liked,
     });
   } catch (error) {
+    console.log(error)
     errors.general = error.message;
     return res.status(500).json({
       success: false,
@@ -557,16 +588,35 @@ exports.savePost = async (req, res) => {
 };
 
 //RANDOMIZE ARRAY
+// function shuffleArray(array) {
+//   for (let i = array.length - 1; i > 0; i--) {
+//     const j = Math.floor(Math.random() * (i + 1));
+//     [array[i], array[j]] = [array[j], array[i]];
+//   }
+//   return array;
+// }
+
 function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+  var i = array.length,
+    j = 0,
+    temp;
+
+  while (i--) {
+
+    j = Math.floor(Math.random() * (i + 1));
+
+    // swap randomly chosen element with current element
+    temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+
   }
+
   return array;
 }
 
 //GET RANDOM POSTS
-let call = 1;
+// let call = 1;
 exports.randomPosts = async (req, res) => {
   let errors = {};
   try {
@@ -590,7 +640,6 @@ exports.randomPosts = async (req, res) => {
     } else {
       //Random post form explorer screen, showing all posts
       posts = await Post.find({})
-        // .or([{ 'status': 'active' }, { 'status': 'silent' }])
         .where("status")
         .equals("active")
         .where("coordinate_status")
@@ -625,11 +674,6 @@ exports.randomPosts = async (req, res) => {
     if (posts.length > 0) {
       randomPosts = shuffleArray(posts);
     }
-    // for (let i = 0; i < maxRandom; i++) {
-    //   const randomIndex = Math.floor(Math.random() * posts.length);
-    //   const post = posts[randomIndex];
-    //   randomPosts.push(post);
-    // }
 
     let country = "";
     const location = await getCountry(ip);
@@ -678,3 +722,108 @@ exports.randomPosts = async (req, res) => {
     });
   }
 };
+
+exports.viewFollowersPosts = async (req, res) => {
+  let errors = {};
+  try {
+    const { authUser, skip, limit, hasFollowing, ip, suggestedSkip } = req.body;
+    let posts = [];
+    let following = true;
+    let skipCount = skip;
+    let suggestedSkipCount = suggestedSkip;
+    posts = await Post.find({user : {$in : authUser.following}})
+            .where("status").equals("active")
+            .where("coordinate_status").equals(true)
+            .select("_id user place createdAt status coordinate_status content caption like comments")
+            .populate("user", "name total_contribution profileImage")
+            .populate("place", "name address types")
+            .sort({createdAt: -1})
+            .skip(skip).limit(limit);
+
+    skipCount = skip + posts.length;
+
+    if(posts.length === 0){
+      following = false;
+      posts = await Post.find({$and: [{ user: { $nin: authUser.following } }, { user: { $ne: authUser._id } }]})
+              .where("status").equals("active")
+              .where("coordinate_status").equals(true)
+              .select("_id user place createdAt status coordinate_status content caption like comments")
+              .populate("user", "name total_contribution profileImage")
+              .populate("place", "name address short_address local_address types")
+              .sort({ createdAt: -1 })
+              .skip(suggestedSkip)
+              .limit(limit);
+      if (posts.length > 0) {
+        posts = shuffleArray(posts);
+      }
+      let count = suggestedSkip;
+      suggestedSkipCount = count + posts.length;
+    }else{
+      following = true;
+    }
+
+    
+
+    if(!posts){
+      return res.status(200).json({
+        success: true,
+        posts,
+        suggestedSkip: suggestedSkipCount,
+        skip: skipCount,
+        hasFollowing: following
+      })
+    }
+
+    let country = "";
+    const location = await getCountry(ip);
+    if (location != null && location.country !== undefined) {
+      country = location.country;
+    } else {
+      country = "IN";
+    }
+
+    posts.forEach((post) => {
+      // console.log("post1", post.display_address_for_own_country);
+      if (post.place.address.short_country == country) {
+        post.place.address.country = "";
+        post.place.local_address = post.display_address_for_own_country;
+      } else {
+        let state = "";
+        if (post.place.address.administrative_area_level_1 != null && post.place.types[0] != "administrative_area_level_1") {
+          state = post.place.address.administrative_area_level_1;
+        } else if (post.place.address.administrative_area_level_2 != null && post.place.types[0] != "administrative_area_level_2") {
+          state = post.place.address.administrative_area_level_2;
+        } else if (post.place.address.locality != null && post.place.types[0] != "locality") {
+          state = post.place.address.locality;
+        } else if (post.place.address.sublocality_level_1 != null && post.place.types[0] != "sublocality_level_1") {
+          state = post.place.address.sublocality_level_1;
+        } else if (post.place.address.sublocality_level_2 != null && post.place.types[0] != "sublocality_level_2") {
+          state = post.place.address.sublocality_level_2;
+        } else if (post.place.address.neighborhood != null && post.place.types[0] != "neighborhood") {
+          state = post.place.address.neighborhood;
+        }
+        if(state != ""){
+          post.place.short_address = state + ", " + post.place.address.country;
+        }else{
+          post.place.short_address =  post.place.address.country;
+        }
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      posts,
+      suggestedSkip: suggestedSkipCount,
+      skip: skipCount,
+      hasFollowing: following
+    })
+    
+  } catch (error) {
+    errors.general = "Something went wrong. Please try again";
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      error: errors,
+    });
+  }
+}

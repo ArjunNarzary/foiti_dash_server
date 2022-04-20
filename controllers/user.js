@@ -745,15 +745,15 @@ exports.followUnfollowUser = async (req, res) => {
     }
 
     //Already followed than unfollow
-    if (owner.follower.includes(user._id)) {
-      const index = owner.follower.indexOf(user.id);
-      owner.follower.splice(index, 1);
-      await owner.save();
-
-      //Remove owner from auth users following
-      const ownIndex = user.following.indexOf(owner._id);
-      user.following.splice(ownIndex, 1);
+    if (user.following.includes(owner._id)) {
+      const index = user.following.indexOf(owner.id);
+      user.following.splice(index, 1);
       await user.save();
+
+      //Remove auth user from owner's followers
+      const ownerIndex = owner.follower.indexOf(user._id);
+      owner.follower.splice(ownerIndex, 1);
+      await owner.save();
       //Remove from FollowDetail table
       await FollowDetail.deleteOne({
         $and: [{ follower: user._id }, { following: owner._id }],
@@ -764,8 +764,10 @@ exports.followUnfollowUser = async (req, res) => {
         message: `You have unfollowed ${owner.name}`,
       });
     } else {
-      owner.follower.push(user._id);
       user.following.push(owner._id);
+      if(!owner.follower.includes(user._id)){
+        owner.follower.push(user._id);
+      }
       await owner.save();
       await user.save();
 

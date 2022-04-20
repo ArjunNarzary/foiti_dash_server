@@ -19,6 +19,10 @@ const postSchema = new mongoose.Schema(
             public_url: String,
             private_id: String,
           },
+          small: {
+            public_url: String,
+            private_id: String,
+          },
           large: {
             public_url: String,
             private_id: String,
@@ -91,8 +95,7 @@ const postSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true },
-  opts
+  { timestamps: true }
 );
 
 //CHECK IF LIKED
@@ -111,27 +114,27 @@ postSchema.virtual("display_address_for_own_country").get(function () {
   let address = this.place.address.administrative_area_level_1;
   if (
     this.place.address.administrative_area_level_2 != undefined &&
-    this.place.address.administrative_area_level_2 != this.name
+    this.place.address.administrative_area_level_2 != this.place.name
   ) {
     address = this.place.address.administrative_area_level_2 + ", " + address;
   } else if (
     this.place.address.natural_feature != undefined &&
-    this.place.address.natural_feature != this.name
+    this.place.address.natural_feature != this.place.name
   ) {
     address = this.place.address.natural_feature + ", " + address;
   } else if (
     this.place.address.sublocality_level_1 != undefined &&
-    this.place.address.sublocality_level_1 != this.name
+    this.place.address.sublocality_level_1 != this.place.name
   ) {
     address = this.place.address.sublocality_level_1 + ", " + address;
   } else if (
     this.place.address.sublocality_level_2 != undefined &&
-    this.place.address.sublocality_level_2 != this.name
+    this.place.address.sublocality_level_2 != this.place.name
   ) {
     address = this.place.address.sublocality_level_2 + ", " + address;
   } else if (
     this.place.address.locality != undefined &&
-    this.place.address.locality != this.name
+    this.place.address.locality != this.place.name
   ) {
     address = this.place.address.locality + ", " + address;
   }

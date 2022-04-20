@@ -38,6 +38,10 @@ const placeSchema = new mongoose.Schema(
         public_url: String,
         private_id: String,
       },
+      small: {
+        public_url: String,
+        private_id: String,
+      },
       thumbnail: {
         public_url: String,
         private_id: String,
