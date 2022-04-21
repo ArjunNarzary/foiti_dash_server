@@ -20,10 +20,13 @@ const {
   updateEmail,
   updatePhone,
   viewFollowDetails,
+  recommendedTraveller,
+  viewRecommendedTraveller,
 } = require("../controllers/user");
 const { validateUser } = require("../middlewares/validations/userValidator");
 
 const { isAuthenticated } = require("../middlewares/auth");
+const RecommendedTraveller = require("../models/RecommendedTraveller");
 
 const router = express.Router();
 
@@ -76,13 +79,17 @@ router
   .post(validateUser("checkotp"), checkOtp)
   .put(validateUser("newPassword"), crateNewPassword);
 
+
+router.route("/followDetails/:id")
+      .get(isAuthenticated, viewFollowDetails);
+
+router.route("/recommendedTravellers").get(isAuthenticated, viewRecommendedTraveller);
+router.route("/recommended/:id").get(isAuthenticated, recommendedTraveller);
+
 //FOLLOW UNFOLLOW VIEW OTHERS PROFILE USER
 router
   .route("/:id")
   .post(isAuthenticated, followUnfollowUser)
   .get(isAuthenticated, viewOthersProfile);
-
-  router.route("/followDetails/:id")
-        .get(isAuthenticated, viewFollowDetails);
 
 module.exports = router;

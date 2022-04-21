@@ -410,7 +410,6 @@ exports.viewPost = async (req, res) => {
   try {
     const postId = req.params.id;
     const { authUser, ip } = req.body;
-    console.log(ip);
 
     const post = await Post.findById(postId).populate("user").populate("place");
 
@@ -735,7 +734,7 @@ exports.viewFollowersPosts = async (req, res) => {
             .where("status").equals("active")
             .where("coordinate_status").equals(true)
             .select("_id user place createdAt status coordinate_status content caption like comments")
-            .populate("user", "name total_contribution profileImage")
+            .populate("user", "name total_contribution profileImage foiti_ambassador")
             .populate("place", "name address types")
             .sort({createdAt: -1})
             .skip(skip).limit(limit);
@@ -748,7 +747,7 @@ exports.viewFollowersPosts = async (req, res) => {
               .where("status").equals("active")
               .where("coordinate_status").equals(true)
               .select("_id user place createdAt status coordinate_status content caption like comments")
-              .populate("user", "name total_contribution profileImage")
+              .populate("user", "name total_contribution profileImage foiti_ambassador")
               .populate("place", "name address short_address local_address types")
               .sort({ createdAt: -1 })
               .skip(suggestedSkip)

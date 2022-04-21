@@ -13,6 +13,7 @@ const Otp = require("../models/Otp");
 const crypto = require("crypto");
 const { sendEmail } = require("../middlewares/sentEmail");
 const { getCountry } = require("../utils/getCountry");
+const RecommendedTraveller = require("../models/RecommendedTraveller");
 
 function createError(errors, validate) {
   const arrError = validate.array();
@@ -40,6 +41,26 @@ function generateUniqueUsername(rString) {
       console.error(err);
       throw err;
     });
+}
+
+//SHUFFLE ARRAY
+function shuffleArray(array) {
+  var i = array.length,
+    j = 0,
+    temp;
+
+  while (i--) {
+
+    j = Math.floor(Math.random() * (i + 1));
+
+    // swap randomly chosen element with current element
+    temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+
+  }
+
+  return array;
 }
 
 //CREATE USER
@@ -952,8 +973,8 @@ exports.viewFollowDetails = async (req, res) => {
     const ownerId = req.params.id;
 
     const owner = await User.findById(ownerId).select("_id, name, following, follower")
-        .populate('following', { name: 1, total_contribution:1, profileImage:1, _id:1, follower:1, following:1})
-      .populate('follower', { name: 1, total_contribution: 1, profileImage: 1, _id: 1, follower: 1, following: 1 });
+        .populate('following', { name: 1, total_contribution:1, profileImage:1, _id:1, follower:1, following:1, foiti_ambassador:1})
+      .populate('follower', { name: 1, total_contribution: 1, profileImage: 1, _id: 1, follower: 1, following: 1, foiti_ambassador:1 });
     if(!owner){
       errors.general = "User not found";
       return res.status(404).json({
@@ -1147,5 +1168,79 @@ exports.crateNewPassword = async (req, res) => {
     });
   }
 };
+
+exports.recommendedTraveller = async (req, res) => {
+  let errors = {};
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select("_id");
+    if(!user){
+      errors.general = "User not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    const traveller = await RecommendedTraveller.findOne({ userId: user._id });
+    if(traveller){
+      return res.status(200).json({
+        success: true,
+        traveller,
+        message: "User already exists"
+      })
+    };
+
+      const newTraveller = await RecommendedTraveller.create({
+        userId: user._id,
+      });
+
+      return res.status(201).json({
+        success: true,
+        traveller: newTraveller,
+        message: "User created successfully"
+      })
+
+    }catch (error) {
+      console.log(error);
+    errors.general = "Something went wrong";
+    return res.status(500).json({
+      success: false,
+      message: errors,
+    })
+  }
+}
+
+//VIEW RECOMMENDED TRAVELLERS
+exports.viewRecommendedTraveller = async (req, res) => {
+  let errors = {};
+  try {
+    const { authUser } = req.body;
+    const recommendedTravellers = await RecommendedTraveller.find({$and: [{userId: {$nin: authUser.following}}, {userId: {$ne: authUser._id}}]})
+                                  .populate("userId", "_id name profileImage foiti_ambassador").limit(100);
+    
+    if(!recommendedTravellers){
+      errors.general = "No recommended traveller found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    let travellers = shuffleArray(recommendedTravellers).splice(0, 10);
+
+    return res.status(200).json({
+      success: true,
+      travellers,
+    });
+
+  } catch (error) {
+    errors.general = error.message;
+    return res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+}
 
 
