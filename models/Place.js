@@ -10,6 +10,7 @@ const placeSchema = new mongoose.Schema(
     google_place_id: {
       type: String,
       index: true,
+      unique:true
     },
     // address: {
     //   route: String,
@@ -102,6 +103,10 @@ const placeSchema = new mongoose.Schema(
       ref: "Place",
     },
     created_place: {
+      type: Boolean,
+      default: false,
+    },
+    reviewed_status: {
       type: Boolean,
       default: false,
     },

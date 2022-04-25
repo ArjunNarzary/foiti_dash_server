@@ -10,6 +10,7 @@ const {
   createContributionPoints,
   randomPosts,
   viewFollowersPosts,
+  deletePost,
 } = require("../controllers/post");
 const { isAuthenticated } = require("../middlewares/auth");
 const router = express.Router();
@@ -35,6 +36,7 @@ router.route("/followersPosts").post(isAuthenticated, viewFollowersPosts);
 router
   .route("/:id")
   .put(isAuthenticated, editPost)
-  .post(isAuthenticated, viewPost);
+  .post(isAuthenticated, viewPost)
+  .get(isAuthenticated, deletePost);
 
 module.exports = router;

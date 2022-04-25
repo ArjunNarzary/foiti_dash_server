@@ -13,6 +13,7 @@ const ContributionPoint = require("../models/ContributionPoint");
 const SavePostPlace = require("../models/SavePostPlace");
 const Contribution = require("../models/Contribution");
 const { getCountry } = require("../utils/getCountry");
+const Review = require("../models/Review");
 
 exports.createContributionPoints = async (req, res) => {
   try {
@@ -102,6 +103,14 @@ exports.createPost = async (req, res) => {
       .withMetadata()
       .toBuffer();
     const resultThumb = await uploadFile(req.file, sharpThumb);
+
+    //Resize Image for small
+    const sharpSmall = await sharp(req.file.path)
+      .resize(150, 150, { fit: "cover" })
+      // .resize(500)
+      .withMetadata()
+      .toBuffer();
+    const resultSmall = await uploadFile(req.file, sharpSmall);
     // const resultThumb = await uploadFile(req.file, fileStream);
 
     //CHECK IF PLACE ID IS ALREADY PRESENT
@@ -115,6 +124,20 @@ exports.createPost = async (req, res) => {
         coordinates: details.coordinates,
         types: details.types,
         created_place: details.created_place,
+        cover_photo: {
+          thumbnail: {
+            public_url: resultThumb.Location,
+            private_id: resultThumb.Key,
+          },
+          small: {
+            public_url: resultSmall.Location,
+            private_id: resultSmall.Key,
+          },
+          large: {
+            public_url: resultLarge.Location,
+            private_id: resultLarge.Key,
+          },
+        }
       });
       newPlaceCreated = true;
     }
@@ -126,6 +149,7 @@ exports.createPost = async (req, res) => {
       if (resultThumb.Key || resultLarge.Key) {
         await deleteFile(resultThumb.Key);
         await deleteFile(resultLarge.Key);
+        await deleteFile(resultSmall.Key);
       }
       return res.status(500).json({
         success: false,
@@ -146,17 +170,16 @@ exports.createPost = async (req, res) => {
 
     let contributionCount = 0;
 
-    //CREATE POST AND UPDATE PLACE TABLE
-    // let status = false;
-    // if (user.account_status === "active") {
-    //   status = true;
-    // }
     const content = [
       {
         image: {
           thumbnail: {
             public_url: resultThumb.Location,
             private_id: resultThumb.Key,
+          },
+          small: {
+            public_url: resultSmall.Location,
+            private_id: resultSmall.Key,
           },
           large: {
             public_url: resultLarge.Location,
@@ -206,13 +229,22 @@ exports.createPost = async (req, res) => {
         //ADD to contribution table
         contribution.places.push(place._id);
         contributionCount = contributionCount + 1;
+      }else{
+        //ADD to contribution table if this place creeation contribution is not added before
+        const findPostCreatedBy = await PlaceCreatedBy.findOne({ place: place._id });
+        if (!findPostCreatedBy) {
+          await PlaceCreatedBy.create({
+            place: place._id,
+            user: user._id,
+          });
+          contributionCount = contributionCount + 1;
+          contribution.places.push(place._id);
+        }
       }
 
       //ADD POST TO CONTRIBUTION TABLE
       contribution.photos.push(post._id);
       contributionCount = contributionCount + 1;
-
-      // user.total_uploads = user.total_uploads + 1;
       post.coordinate_status = true;
       await user.save();
     } else {
@@ -236,7 +268,6 @@ exports.createPost = async (req, res) => {
       uploadedBefore,
     });
   } catch (error) {
-    console.log(error);
     errors.general = error.message;
     if (req.file) {
       await unlinkFile(req.file.path);
@@ -245,6 +276,7 @@ exports.createPost = async (req, res) => {
     if (resultThumb.Key || resultLarge.Key) {
       await deleteFile(resultThumb.Key);
       await deleteFile(resultLarge.Key);
+      await deleteFile(resultSmall.Key);
     }
     return res.status(500).json({
       success: false,
@@ -261,8 +293,8 @@ exports.editPost = async (req, res) => {
     const postId = req.params.id;
 
     //Validate CAPTION LENGTH
-    if (caption.length > 1000) {
-      errors.caption = "Please write caption within 1000 characeters";
+    if (caption.length > 2000) {
+      errors.caption = "Please write caption within 2000 characeters";
       res.status(400).json({
         success: false,
         message: errors,
@@ -313,8 +345,6 @@ exports.editPost = async (req, res) => {
       });
     }
 
-    const contribution = await Contribution.findOne();
-
     //IF NEW PLACE IS NOT SAME REMOVE POST FROM PREVIOUS PLACE
     if (details.name != "") {
       if (place.google_place_id.toString() !== details.place_id.toString()) {
@@ -324,21 +354,30 @@ exports.editPost = async (req, res) => {
           await place.save();
         }
 
-        //DELET PLACE IF NO POST AVAILABLE
+        //DELETE PLACE IF NO POST AVAILABLE
         if (place.posts.length === 0) {
           const placeCreated = await PlaceCreatedBy.findOne({
             place: place._id,
           });
 
           //REMOVE CONTRIBUITION FROM THE USER WHO CREATED THE PLACE
-          const user = await User.findById(placeCreated._id);
-          if (user) {
-            user.total_contribution =
-              user.total_contribution - contribution.place;
-            user.visited.places -= 1;
-            await user.save();
+          if(placeCreated){
+            const placeCreator = await User.findById(placeCreated.user);
+            if (placeCreator) {
+              placeCreator.total_contribution =
+                placeCreator.total_contribution - 1;
+              await placeCreator.save();
+            }
+           
+            //REMOVE PLACE FROM CONTRIBUTION TABLE
+            const contribution = await Contribution.findOne({ user_id: placeCreator._id });
+            if(contribution.places.includes(place._id)){
+              const index = contribution.places.indexOf(place._id);
+              contribution.places.splice(index, 1);
+              await contribution.save();
+            }
+            await placeCreated.deleteOne();
           }
-          await placeCreated.deleteOne();
           await place.deleteOne();
         }
         samePlace = false;
@@ -359,17 +398,44 @@ exports.editPost = async (req, res) => {
       }
     }
 
-    //TODO::IF NEW PLACE ADDED
-    if (newPlaceCreated) {
-      await PlaceCreatedBy.create({
-        place: place._id,
-        user: authUser._id,
-      });
+    //IF IMAGE HAS COORDINATES
+    if (
+      post.content[0].coordinate.lat !== "" &&
+      post.content[0].coordinate.lng !== ""
+    ) {
 
       const currentUser = await User.findById(authUser._id);
-      currentUser.total_contribution =
-        currentUser.total_contribution + contribution.place;
+      let contributionCount = currentUser.total_contribution;
+      const currentUserContribution = await Contribution.findOne({ user_id: authUser._id });
+
+      //Add to placeCreatedTableBy
+      if (newPlaceCreated) {
+        await PlaceCreatedBy.create({
+          place: place._id,
+          user: authUser._id,
+        });
+
+        //ADD to contribution table
+        currentUserContribution.places.push(place._id);
+        contributionCount = contributionCount + 1;
+      }else{
+        //IF PLACE IS SAME AND FIRST POST WITH COORDINATES CREATED
+        if(samePlace){
+          //ADD to contribution table if this place creeation contribution is not added before
+          const findPostCreatedBy = await PlaceCreatedBy.findOne({ place: place._id });
+          if(!findPostCreatedBy){
+            await PlaceCreatedBy.create({
+              place: place._id,
+              user: authUser._id,
+            });
+            contributionCount = contributionCount + 1;
+            currentUserContribution.places.push(place._id);
+          }
+        }
+      }
+      currentUser.total_contribution = contributionCount;
       await currentUser.save();
+      await currentUserContribution.save();
     }
 
     //UPDATE POST AND UPDATE PLACE TABLE
@@ -472,6 +538,125 @@ exports.viewPost = async (req, res) => {
 };
 
 //DELETE POST
+exports.deletePost = async (req, res) => {
+  // const postId = req.params.id;
+  // console.log(postId)
+  // try {
+  //   const HighestLikedPost = await Post.aggregate([
+  //     { $match: Post.where("place").equals(postId).where('coordinate_status').equals(true).cast(Post) },
+  //     {
+  //       $addFields: {
+  //         TotalLike: { $size: "$like" },
+  //       },
+  //     },
+  //     { $sort: { TotalLike: -1}},
+  //   ]).limit(1);
+  //   return res.status(200).json({
+  //     success: true,
+  //     HighestLikedPost,
+  //   });
+  // } catch (error) {
+  //   console.log(error);
+  //   return;
+  // }
+  // return;
+  let errors = {};
+  try {
+    const postId = req.params.id;
+    const { authUser } = req.body;
+    const post = await Post.findById(postId);
+    if(!post){
+      errors.general = "Post not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    if(post.user.toString() != authUser._id.toString()){
+      errors.general = "You are not authorized to delete this post";
+      return res.status(401).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    //DELETE POST FROM PLACE
+    const place = await Place.findById(post.place);
+    //DELETE PLACE if no more posts and remove review and contribution from user
+    if(place.posts.length == 1){
+      const placeCreatedBy = await PlaceCreatedBy.findOne({ place: place._id });
+      if(placeCreatedBy){
+        const user = await User.findById(placeCreatedBy.user);
+        const contribution = await Contribution.findOne({ userId: user._id });
+        if(contribution){
+          contribution.places = contribution.places.filter((place) => place.toString() != placeCreatedBy.place.toString());
+          await contribution.save();
+        }
+        user.total_contribution = user.total_contribution - 1;
+        await user.save();
+        await placeCreatedBy.remove();
+      }
+
+      console.log("DELETE PLACE status", place.reviewed_status)
+      if(place.reviewed_status === false){
+        //REMOVE COVER PICTURE IF IMAGE IS DIFFERENT FROM POST IMAGE
+        if (place.cover_photo.large.private_id != undefined && place.cover_photo.large.private_id != post.content[0].image.large.private_id) {
+          await deleteFile(place.cover_photo.large.private_id);
+          await deleteFile(place.cover_photo.thumbnail.private_id);
+          await deleteFile(place.cover_photo.small.private_id);
+        }
+        //GET ALL REVIEWS OF THE PLACE AND REMOVE
+        await Review.deleteMany({ place_id: place._id });
+        await place.remove();
+      }
+    }else{
+      const index = place.posts.indexOf(post._id);
+      place.posts.splice(index, 1);
+      //REPLACE PLACE COVER PHOTO IF DELETED POST IS COVER PHOTO`
+      if(place.cover_photo.large.private_id == post.content[0].image.large.private_id){
+        //GET MOST LIKE ARRAY COUNT
+        const HighestLikedPost = await Post.aggregate([
+          { $match: Post.where('_id').ne(post._id).where("place").equals(place._id).where('coordinate_status').equals(true).cast(Post) },
+          {
+            $addFields: {
+              TotalLike: { $size: "$like" },
+            },
+          },
+          { $sort: { TotalLike: -1 } },
+        ]).limit(1);
+        if(HighestLikedPost.length > 0){
+          place.cover_photo = HighestLikedPost[0].content[0].image;
+        }else{
+          place.cover_photo = {};
+        }
+
+
+      }
+      await place.save();
+      }
+
+      //DELETE POST IMAGES and DELETE POST
+    await deleteFile(post.content[0].image.large.private_id);
+    await deleteFile(post.content[0].image.thumbnail.private_id);
+    await deleteFile(post.content[0].image.small.private_id);
+    await post.deleteOne();
+
+    return res.status(200).json({
+      success: true,
+      message: "Post deleted successfully",
+    });
+    
+  } catch (error) {
+    console.log(error);
+    errors.general = error.message;
+    return res.status(500).json({
+      success: false,
+      error: errors,
+    });
+    
+  }
+};
 
 //LIKE UNLIKE POST
 exports.likeUnlikePost = async (req, res) => {
@@ -492,7 +677,7 @@ exports.likeUnlikePost = async (req, res) => {
 
     //UNLIKE IF ALEADY LIKED
     if (post.like.includes(authUser._id)) {
-      const index = post.like.indexOf(authUser.id);
+      const index = post.like.indexOf(authUser._id);
       post.like.splice(index, 1);
       await post.save();
 

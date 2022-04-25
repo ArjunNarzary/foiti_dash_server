@@ -5,6 +5,7 @@ const placeCreatedBySchema = new mongoose.Schema(
     place: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Place",
+      unique: true,
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,

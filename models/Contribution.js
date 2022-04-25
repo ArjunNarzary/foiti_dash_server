@@ -7,6 +7,7 @@ const contributionSchema = new Schema(
       type: Schema.Types.ObjectId,
       required: true,
       ref: "User",
+      unique:true
     },
     photos: [
       {
