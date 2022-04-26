@@ -37,6 +37,6 @@ router
   .route("/:id")
   .put(isAuthenticated, editPost)
   .post(isAuthenticated, viewPost)
-  .get(isAuthenticated, deletePost);
+  .delete(isAuthenticated, deletePost);
 
 module.exports = router;

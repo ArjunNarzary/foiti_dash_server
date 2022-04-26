@@ -137,7 +137,7 @@ exports.createPost = async (req, res) => {
             public_url: resultLarge.Location,
             private_id: resultLarge.Key,
           },
-        }
+        },
       });
       newPlaceCreated = true;
     }
@@ -229,9 +229,11 @@ exports.createPost = async (req, res) => {
         //ADD to contribution table
         contribution.places.push(place._id);
         contributionCount = contributionCount + 1;
-      }else{
+      } else {
         //ADD to contribution table if this place creeation contribution is not added before
-        const findPostCreatedBy = await PlaceCreatedBy.findOne({ place: place._id });
+        const findPostCreatedBy = await PlaceCreatedBy.findOne({
+          place: place._id,
+        });
         if (!findPostCreatedBy) {
           await PlaceCreatedBy.create({
             place: place._id,
@@ -361,17 +363,19 @@ exports.editPost = async (req, res) => {
           });
 
           //REMOVE CONTRIBUITION FROM THE USER WHO CREATED THE PLACE
-          if(placeCreated){
+          if (placeCreated) {
             const placeCreator = await User.findById(placeCreated.user);
             if (placeCreator) {
               placeCreator.total_contribution =
                 placeCreator.total_contribution - 1;
               await placeCreator.save();
             }
-           
+
             //REMOVE PLACE FROM CONTRIBUTION TABLE
-            const contribution = await Contribution.findOne({ user_id: placeCreator._id });
-            if(contribution.places.includes(place._id)){
+            const contribution = await Contribution.findOne({
+              user_id: placeCreator._id,
+            });
+            if (contribution.places.includes(place._id)) {
               const index = contribution.places.indexOf(place._id);
               contribution.places.splice(index, 1);
               await contribution.save();
@@ -403,10 +407,11 @@ exports.editPost = async (req, res) => {
       post.content[0].coordinate.lat !== "" &&
       post.content[0].coordinate.lng !== ""
     ) {
-
       const currentUser = await User.findById(authUser._id);
       let contributionCount = currentUser.total_contribution;
-      const currentUserContribution = await Contribution.findOne({ user_id: authUser._id });
+      const currentUserContribution = await Contribution.findOne({
+        user_id: authUser._id,
+      });
 
       //Add to placeCreatedTableBy
       if (newPlaceCreated) {
@@ -418,12 +423,14 @@ exports.editPost = async (req, res) => {
         //ADD to contribution table
         currentUserContribution.places.push(place._id);
         contributionCount = contributionCount + 1;
-      }else{
+      } else {
         //IF PLACE IS SAME AND FIRST POST WITH COORDINATES CREATED
-        if(samePlace){
+        if (samePlace) {
           //ADD to contribution table if this place creeation contribution is not added before
-          const findPostCreatedBy = await PlaceCreatedBy.findOne({ place: place._id });
-          if(!findPostCreatedBy){
+          const findPostCreatedBy = await PlaceCreatedBy.findOne({
+            place: place._id,
+          });
+          if (!findPostCreatedBy) {
             await PlaceCreatedBy.create({
               place: place._id,
               user: authUser._id,
@@ -500,27 +507,27 @@ exports.viewPost = async (req, res) => {
       country = "IN";
     }
 
-      if (post.place.address.short_country == country) {
-        post.place.address.country = "";
-        post.place.local_address = post.display_address_for_own_country;
-      } else {
-        let state = "";
-        if (post.place.address.administrative_area_level_1 != null) {
-          state = post.place.address.administrative_area_level_1;
-        } else if (post.place.address.administrative_area_level_2 != null) {
-          state = post.place.address.administrative_area_level_2;
-        } else if (post.place.address.locality != null) {
-          state = post.place.address.locality;
-        } else if (post.place.address.sublocality_level_1 != null) {
-          state = post.place.address.sublocality_level_1;
-        } else if (post.place.address.sublocality_level_2 != null) {
-          state = post.place.address.sublocality_level_2;
-        } else if (post.place.address.neighborhood != null) {
-          state = post.place.address.neighborhood;
-        }
-
-        post.place.short_address = state + ", " + post.place.address.country;
+    if (post.place.address.short_country == country) {
+      post.place.address.country = "";
+      post.place.local_address = post.display_address_for_own_country;
+    } else {
+      let state = "";
+      if (post.place.address.administrative_area_level_1 != null) {
+        state = post.place.address.administrative_area_level_1;
+      } else if (post.place.address.administrative_area_level_2 != null) {
+        state = post.place.address.administrative_area_level_2;
+      } else if (post.place.address.locality != null) {
+        state = post.place.address.locality;
+      } else if (post.place.address.sublocality_level_1 != null) {
+        state = post.place.address.sublocality_level_1;
+      } else if (post.place.address.sublocality_level_2 != null) {
+        state = post.place.address.sublocality_level_2;
+      } else if (post.place.address.neighborhood != null) {
+        state = post.place.address.neighborhood;
       }
+
+      post.place.short_address = state + ", " + post.place.address.country;
+    }
 
     return res.status(200).json({
       success: true,
@@ -528,7 +535,7 @@ exports.viewPost = async (req, res) => {
       liked,
     });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     errors.general = error.message;
     return res.status(500).json({
       success: false,
@@ -539,33 +546,12 @@ exports.viewPost = async (req, res) => {
 
 //DELETE POST
 exports.deletePost = async (req, res) => {
-  // const postId = req.params.id;
-  // console.log(postId)
-  // try {
-  //   const HighestLikedPost = await Post.aggregate([
-  //     { $match: Post.where("place").equals(postId).where('coordinate_status').equals(true).cast(Post) },
-  //     {
-  //       $addFields: {
-  //         TotalLike: { $size: "$like" },
-  //       },
-  //     },
-  //     { $sort: { TotalLike: -1}},
-  //   ]).limit(1);
-  //   return res.status(200).json({
-  //     success: true,
-  //     HighestLikedPost,
-  //   });
-  // } catch (error) {
-  //   console.log(error);
-  //   return;
-  // }
-  // return;
   let errors = {};
   try {
     const postId = req.params.id;
     const { authUser } = req.body;
     const post = await Post.findById(postId);
-    if(!post){
+    if (!post) {
       errors.general = "Post not found";
       return res.status(404).json({
         success: false,
@@ -573,7 +559,7 @@ exports.deletePost = async (req, res) => {
       });
     }
 
-    if(post.user.toString() != authUser._id.toString()){
+    if (post.user.toString() != authUser._id.toString()) {
       errors.general = "You are not authorized to delete this post";
       return res.status(401).json({
         success: false,
@@ -584,13 +570,15 @@ exports.deletePost = async (req, res) => {
     //DELETE POST FROM PLACE
     const place = await Place.findById(post.place);
     //DELETE PLACE if no more posts and remove review and contribution from user
-    if(place.posts.length == 1){
+    if (place.posts.length == 1) {
       const placeCreatedBy = await PlaceCreatedBy.findOne({ place: place._id });
-      if(placeCreatedBy){
+      if (placeCreatedBy) {
         const user = await User.findById(placeCreatedBy.user);
         const contribution = await Contribution.findOne({ userId: user._id });
-        if(contribution){
-          contribution.places = contribution.places.filter((place) => place.toString() != placeCreatedBy.place.toString());
+        if (contribution) {
+          contribution.places = contribution.places.filter(
+            (place) => place.toString() != placeCreatedBy.place.toString()
+          );
           await contribution.save();
         }
         user.total_contribution = user.total_contribution - 1;
@@ -598,10 +586,13 @@ exports.deletePost = async (req, res) => {
         await placeCreatedBy.remove();
       }
 
-      console.log("DELETE PLACE status", place.reviewed_status)
-      if(place.reviewed_status === false){
+      if (place.reviewed_status === false) {
         //REMOVE COVER PICTURE IF IMAGE IS DIFFERENT FROM POST IMAGE
-        if (place.cover_photo.large.private_id != undefined && place.cover_photo.large.private_id != post.content[0].image.large.private_id) {
+        if (
+          place.cover_photo.large.private_id != undefined &&
+          place.cover_photo.large.private_id !=
+            post.content[0].image.large.private_id
+        ) {
           await deleteFile(place.cover_photo.large.private_id);
           await deleteFile(place.cover_photo.thumbnail.private_id);
           await deleteFile(place.cover_photo.small.private_id);
@@ -610,14 +601,25 @@ exports.deletePost = async (req, res) => {
         await Review.deleteMany({ place_id: place._id });
         await place.remove();
       }
-    }else{
+    } else {
       const index = place.posts.indexOf(post._id);
       place.posts.splice(index, 1);
       //REPLACE PLACE COVER PHOTO IF DELETED POST IS COVER PHOTO`
-      if(place.cover_photo.large.private_id == post.content[0].image.large.private_id){
+      if (
+        place.cover_photo.large.private_id ==
+        post.content[0].image.large.private_id
+      ) {
         //GET MOST LIKE ARRAY COUNT
         const HighestLikedPost = await Post.aggregate([
-          { $match: Post.where('_id').ne(post._id).where("place").equals(place._id).where('coordinate_status').equals(true).cast(Post) },
+          {
+            $match: Post.where("_id")
+              .ne(post._id)
+              .where("place")
+              .equals(place._id)
+              .where("coordinate_status")
+              .equals(true)
+              .cast(Post),
+          },
           {
             $addFields: {
               TotalLike: { $size: "$like" },
@@ -625,18 +627,29 @@ exports.deletePost = async (req, res) => {
           },
           { $sort: { TotalLike: -1 } },
         ]).limit(1);
-        if(HighestLikedPost.length > 0){
+        if (HighestLikedPost.length > 0) {
           place.cover_photo = HighestLikedPost[0].content[0].image;
-        }else{
+        } else {
           place.cover_photo = {};
         }
-
-
       }
       await place.save();
+    }
+    //DECREASE COTRIBUTION FOR CURRENT POST
+    if (post.coordinate_status) {
+      const contribution = await Contribution.findOne({ userId: authUser._id });
+      if (contribution) {
+        const index = contribution.photos.indexOf(post._id);
+        contribution.photos.splice(index, 1);
+        await contribution.save();
       }
 
-      //DELETE POST IMAGES and DELETE POST
+      const user = await User.findById(authUser._id);
+      user.total_contribution = user.total_contribution - 1;
+      await user.save();
+    }
+
+    //DELETE POST IMAGES and DELETE POST
     await deleteFile(post.content[0].image.large.private_id);
     await deleteFile(post.content[0].image.thumbnail.private_id);
     await deleteFile(post.content[0].image.small.private_id);
@@ -646,7 +659,6 @@ exports.deletePost = async (req, res) => {
       success: true,
       message: "Post deleted successfully",
     });
-    
   } catch (error) {
     console.log(error);
     errors.general = error.message;
@@ -654,7 +666,6 @@ exports.deletePost = async (req, res) => {
       success: false,
       error: errors,
     });
-    
   }
 };
 
@@ -786,14 +797,12 @@ function shuffleArray(array) {
     temp;
 
   while (i--) {
-
     j = Math.floor(Math.random() * (i + 1));
 
     // swap randomly chosen element with current element
     temp = array[i];
     array[i] = array[j];
     array[j] = temp;
-
   }
 
   return array;
@@ -915,47 +924,62 @@ exports.viewFollowersPosts = async (req, res) => {
     let following = true;
     let skipCount = skip;
     let suggestedSkipCount = suggestedSkip;
-    posts = await Post.find({user : {$in : authUser.following}})
-            .where("status").equals("active")
-            .where("coordinate_status").equals(true)
-            .select("_id user place createdAt status coordinate_status content caption like comments")
-            .populate("user", "name total_contribution profileImage foiti_ambassador")
-            .populate("place", "name address types")
-            .sort({createdAt: -1})
-            .skip(skip).limit(limit);
+    posts = await Post.find({ user: { $in: authUser.following } })
+      .where("status")
+      .equals("active")
+      .where("coordinate_status")
+      .equals(true)
+      .select(
+        "_id user place createdAt status coordinate_status content caption like comments"
+      )
+      .populate("user", "name total_contribution profileImage foiti_ambassador")
+      .populate("place", "name address types")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     skipCount = skip + posts.length;
 
-    if(posts.length === 0){
+    if (posts.length === 0) {
       following = false;
-      posts = await Post.find({$and: [{ user: { $nin: authUser.following } }, { user: { $ne: authUser._id } }]})
-              .where("status").equals("active")
-              .where("coordinate_status").equals(true)
-              .select("_id user place createdAt status coordinate_status content caption like comments")
-              .populate("user", "name total_contribution profileImage foiti_ambassador")
-              .populate("place", "name address short_address local_address types")
-              .sort({ createdAt: -1 })
-              .skip(suggestedSkip)
-              .limit(limit);
+      posts = await Post.find({
+        $and: [
+          { user: { $nin: authUser.following } },
+          { user: { $ne: authUser._id } },
+        ],
+      })
+        .where("status")
+        .equals("active")
+        .where("coordinate_status")
+        .equals(true)
+        .select(
+          "_id user place createdAt status coordinate_status content caption like comments"
+        )
+        .populate(
+          "user",
+          "name total_contribution profileImage foiti_ambassador"
+        )
+        .populate("place", "name address short_address local_address types")
+        .sort({ createdAt: -1 })
+        .skip(suggestedSkip)
+        .limit(limit);
       if (posts.length > 0) {
         posts = shuffleArray(posts);
       }
       let count = suggestedSkip;
       suggestedSkipCount = count + posts.length;
-    }else{
+    } else {
       following = true;
     }
 
-    
-
-    if(!posts){
+    if (!posts) {
       return res.status(200).json({
         success: true,
         posts,
         suggestedSkip: suggestedSkipCount,
         skip: skipCount,
-        hasFollowing: following
-      })
+        hasFollowing: following,
+      });
     }
 
     let country = "";
@@ -973,23 +997,41 @@ exports.viewFollowersPosts = async (req, res) => {
         post.place.local_address = post.display_address_for_own_country;
       } else {
         let state = "";
-        if (post.place.address.administrative_area_level_1 != null && post.place.types[0] != "administrative_area_level_1") {
+        if (
+          post.place.address.administrative_area_level_1 != null &&
+          post.place.types[0] != "administrative_area_level_1"
+        ) {
           state = post.place.address.administrative_area_level_1;
-        } else if (post.place.address.administrative_area_level_2 != null && post.place.types[0] != "administrative_area_level_2") {
+        } else if (
+          post.place.address.administrative_area_level_2 != null &&
+          post.place.types[0] != "administrative_area_level_2"
+        ) {
           state = post.place.address.administrative_area_level_2;
-        } else if (post.place.address.locality != null && post.place.types[0] != "locality") {
+        } else if (
+          post.place.address.locality != null &&
+          post.place.types[0] != "locality"
+        ) {
           state = post.place.address.locality;
-        } else if (post.place.address.sublocality_level_1 != null && post.place.types[0] != "sublocality_level_1") {
+        } else if (
+          post.place.address.sublocality_level_1 != null &&
+          post.place.types[0] != "sublocality_level_1"
+        ) {
           state = post.place.address.sublocality_level_1;
-        } else if (post.place.address.sublocality_level_2 != null && post.place.types[0] != "sublocality_level_2") {
+        } else if (
+          post.place.address.sublocality_level_2 != null &&
+          post.place.types[0] != "sublocality_level_2"
+        ) {
           state = post.place.address.sublocality_level_2;
-        } else if (post.place.address.neighborhood != null && post.place.types[0] != "neighborhood") {
+        } else if (
+          post.place.address.neighborhood != null &&
+          post.place.types[0] != "neighborhood"
+        ) {
           state = post.place.address.neighborhood;
         }
-        if(state != ""){
+        if (state != "") {
           post.place.short_address = state + ", " + post.place.address.country;
-        }else{
-          post.place.short_address =  post.place.address.country;
+        } else {
+          post.place.short_address = post.place.address.country;
         }
       }
     });
@@ -999,9 +1041,8 @@ exports.viewFollowersPosts = async (req, res) => {
       posts,
       suggestedSkip: suggestedSkipCount,
       skip: skipCount,
-      hasFollowing: following
-    })
-    
+      hasFollowing: following,
+    });
   } catch (error) {
     errors.general = "Something went wrong. Please try again";
     console.log(error);
@@ -1010,4 +1051,4 @@ exports.viewFollowersPosts = async (req, res) => {
       error: errors,
     });
   }
-}
+};
