@@ -15,12 +15,12 @@ const contributionSchema = new Schema(
         ref: "Post",
       },
     ],
-    places: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Place",
-      },
-    ],
+    // places: [
+    //   {
+    //     type: Schema.Types.ObjectId,
+    //     ref: "Place",
+    //   },
+    // ],
     added_places: [
       {
         type: Schema.Types.ObjectId,
@@ -60,5 +60,18 @@ const contributionSchema = new Schema(
   },
   { timestamps: true }
 );
+
+//CALCULATE TOTAL CONTRIBUTION POINTS
+contributionSchema.methods.calculateTotalContribution = function () {
+  let total = 0;
+  total = total + this.photos.length;
+  total = total + this.added_places.length;
+  total = total + this.reviews.length;
+  total = total + this.review_200_characters.length;
+  total = total + this.ratings.length;
+  total = total + this.reports.length;
+  total = total + this.edits.length;
+  return total;
+}
 
 module.exports = mongoose.model("Contribution", contributionSchema);

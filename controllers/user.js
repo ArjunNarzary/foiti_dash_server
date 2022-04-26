@@ -437,36 +437,6 @@ exports.viewOwnProfile = async (req, res) => {
     const user = authUser;
     //COUNT TOTAL POST UPLOADS
     const posts = await Post.find({ user: user._id }).populate("place");
-    // let placesVisited = 0;
-    // let countryVisited = 0;
-    // if (totalPosts != 0) {
-    //   //COUNT TOTAL PLACES VISTED
-    //   const totalPlaces = await Post.find({ user: user._id })
-    //     .where("coordinate_status")
-    //     .ne(false)
-    //     .distinct("place");
-    //   placesVisited = totalPlaces.length;
-    //   //Count country visited
-    //   const countryVisitedCount = await Post.find({ user: user._id })
-    //     .where("coordinate_status")
-    //     .ne(false)
-    //     .populate("place")
-    //     .exec()
-    //     .then((posts) => {
-    //       const countryVisited = posts.map((post) => {
-    //         return post.place.address.country;
-    //       });
-    //       const uniqueCountryVisited = [...new Set(countryVisited)];
-    //       return uniqueCountryVisited.length;
-    //     });
-    //   // .distinct("place");
-    //   // const uniqueCount = new Set(countryVisitedCount.place).size;
-    //   if (countryVisitedCount > 1) {
-    //     countryVisited = countryVisitedCount - 1;
-    //   } else {
-    //     countryVisited = 0;
-    //   }
-    // }
 
     const totalPosts = posts.length;
     const post1 = await Post.find({ user: user._id })
@@ -495,15 +465,6 @@ exports.viewOwnProfile = async (req, res) => {
     } else {
       countryVisited = 0;
     }
-
-
-    // Make name first letter capital
-    // const name = user.name;
-    // const nameArray = name.split(" ");
-    // const capitalizedName = nameArray.map((name) => {
-    //   return name.charAt(0).toUpperCase() + name.slice(1);
-    // })
-    // user.name = capitalizedName.join(" ");
 
     return res.status(200).json({
       success: true,
@@ -612,7 +573,7 @@ exports.viewOthersProfile = async (req, res) => {
       countryVisited,
     });
   } catch (error) {
-    console.log(error.message);
+    console.log(error);
     errors.general = "Something went wrong while viewing this user's profile";
     return res.status(500).json({
       success: false,

@@ -75,26 +75,14 @@ exports.createPost = async (req, res) => {
 
     //UPLOAD IMAGE TO S3
     //Resize post Image if width is larger than 1080
-    let resultLarge = {};
-    // if (details.images[0].width > 1080) {
-    //   const sharpLarge = await sharp(req.file.path)
-    //     .resize(1080)
-    //     .withMetadata()
-    //     .toBuffer();
-    //   resultLarge = await uploadFile(req.file, sharpLarge);
-    // } else {
-    //   const fileStream = fs.createReadStream(req.file.path);
-    //   resultLarge = await uploadFile(req.file, fileStream);
-    // }
-    // console.log(req.file);
-    // const fileStream = fs.createReadStream(req.file.path);
-    // resultLarge = await uploadFile(req.file, fileStream);
+    // let resultLarge = {};
+    // if (details.images[0].width > 1080) 
 
     const sharpLarge = await sharp(req.file.path)
       .resize(1080)
       .withMetadata()
       .toBuffer();
-    resultLarge = await uploadFile(req.file, sharpLarge);
+    const resultLarge = await uploadFile(req.file, sharpLarge);
 
     //Resize Image for thumbnail
     const sharpThumb = await sharp(req.file.path)
@@ -227,10 +215,9 @@ exports.createPost = async (req, res) => {
         });
 
         //ADD to contribution table
-        contribution.places.push(place._id);
-        contributionCount = contributionCount + 1;
+        contribution.added_places.push(place._id);
       } else {
-        //ADD to contribution table if this place creeation contribution is not added before
+        //ADD to contribution table if this place creation contribution is not added before
         const findPostCreatedBy = await PlaceCreatedBy.findOne({
           place: place._id,
         });
@@ -239,14 +226,12 @@ exports.createPost = async (req, res) => {
             place: place._id,
             user: user._id,
           });
-          contributionCount = contributionCount + 1;
-          contribution.places.push(place._id);
+          contribution.added_places.push(place._id);
         }
       }
 
       //ADD POST TO CONTRIBUTION TABLE
       contribution.photos.push(post._id);
-      contributionCount = contributionCount + 1;
       post.coordinate_status = true;
       await user.save();
     } else {
@@ -254,12 +239,11 @@ exports.createPost = async (req, res) => {
     }
 
     //ADD CONTRIBUTION TO USER table
-    let count = parseInt(user.total_contribution) || 0;
-    user.total_contribution = count + contributionCount;
+    await contribution.save();
+    user.total_contribution = contribution.calculateTotalContribution();
     user.save();
 
     await post.save();
-    await contribution.save();
 
     //delete file from server storage
     await unlinkFile(req.file.path);
@@ -365,21 +349,20 @@ exports.editPost = async (req, res) => {
           //REMOVE CONTRIBUITION FROM THE USER WHO CREATED THE PLACE
           if (placeCreated) {
             const placeCreator = await User.findById(placeCreated.user);
-            if (placeCreator) {
-              placeCreator.total_contribution =
-                placeCreator.total_contribution - 1;
-              await placeCreator.save();
-            }
-
             //REMOVE PLACE FROM CONTRIBUTION TABLE
             const contribution = await Contribution.findOne({
               user_id: placeCreator._id,
             });
-            if (contribution.places.includes(place._id)) {
-              const index = contribution.places.indexOf(place._id);
-              contribution.places.splice(index, 1);
+            if (contribution.added_places.includes(place._id)) {
+              const index = contribution.added_places.indexOf(place._id);
+              contribution.added_places.splice(index, 1);
               await contribution.save();
             }
+            if (placeCreator) {
+              placeCreator.total_contribution = contribution.calculateTotalContribution();
+              await placeCreator.save();
+            }
+
             await placeCreated.deleteOne();
           }
           await place.deleteOne();
@@ -408,7 +391,6 @@ exports.editPost = async (req, res) => {
       post.content[0].coordinate.lng !== ""
     ) {
       const currentUser = await User.findById(authUser._id);
-      let contributionCount = currentUser.total_contribution;
       const currentUserContribution = await Contribution.findOne({
         user_id: authUser._id,
       });
@@ -421,8 +403,7 @@ exports.editPost = async (req, res) => {
         });
 
         //ADD to contribution table
-        currentUserContribution.places.push(place._id);
-        contributionCount = contributionCount + 1;
+        currentUserContribution.added_places.push(place._id);
       } else {
         //IF PLACE IS SAME AND FIRST POST WITH COORDINATES CREATED
         if (samePlace) {
@@ -435,14 +416,13 @@ exports.editPost = async (req, res) => {
               place: place._id,
               user: authUser._id,
             });
-            contributionCount = contributionCount + 1;
-            currentUserContribution.places.push(place._id);
+            currentUserContribution.added_places.push(place._id);
           }
         }
       }
-      currentUser.total_contribution = contributionCount;
-      await currentUser.save();
       await currentUserContribution.save();
+      currentUser.total_contribution = currentUserContribution.calculateTotalContribution();
+      await currentUser.save();
     }
 
     //UPDATE POST AND UPDATE PLACE TABLE
@@ -576,12 +556,12 @@ exports.deletePost = async (req, res) => {
         const user = await User.findById(placeCreatedBy.user);
         const contribution = await Contribution.findOne({ userId: user._id });
         if (contribution) {
-          contribution.places = contribution.places.filter(
+          contribution.added_places = contribution.added_places.filter(
             (place) => place.toString() != placeCreatedBy.place.toString()
           );
           await contribution.save();
         }
-        user.total_contribution = user.total_contribution - 1;
+        user.total_contribution = contribution.calculateTotalContribution();
         await user.save();
         await placeCreatedBy.remove();
       }
@@ -645,7 +625,7 @@ exports.deletePost = async (req, res) => {
       }
 
       const user = await User.findById(authUser._id);
-      user.total_contribution = user.total_contribution - 1;
+      user.total_contribution = contribution.calculateTotalContribution();
       await user.save();
     }
 
