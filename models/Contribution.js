@@ -15,6 +15,12 @@ const contributionSchema = new Schema(
         ref: "Post",
       },
     ],
+    photos_with_coordinates: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Post",
+      },
+    ],
     // places: [
     //   {
     //     type: Schema.Types.ObjectId,
@@ -65,6 +71,7 @@ const contributionSchema = new Schema(
 contributionSchema.methods.calculateTotalContribution = function () {
   let total = 0;
   total = total + this.photos.length;
+  total = total + this.photos_with_coordinates.length;
   total = total + this.added_places.length;
   total = total + this.reviews.length;
   total = total + this.review_200_characters.length;

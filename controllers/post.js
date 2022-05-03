@@ -199,6 +199,8 @@ exports.createPost = async (req, res) => {
       contribution = await Contribution({ userId: user._id });
     }
 
+    //ADD POST IN CONTRIBUTION
+    contribution.photos.push(post._id);
     //IF IMAGE HAS COORDINATES
     if (
       post.content[0].coordinate.lat !== "" &&
@@ -228,7 +230,7 @@ exports.createPost = async (req, res) => {
       }
 
       //ADD POST TO CONTRIBUTION TABLE
-      contribution.photos.push(post._id);
+      contribution.photos_with_coordinates.push(post._id);
       post.coordinate_status = true;
       await user.save();
     } else {
@@ -610,18 +612,22 @@ exports.deletePost = async (req, res) => {
       await place.save();
     }
     //DECREASE COTRIBUTION FOR CURRENT POST
-    if (post.coordinate_status) {
+    // if (post.coordinate_status) {
       const contribution = await Contribution.findOne({ userId: authUser._id });
       if (contribution) {
         const index = contribution.photos.indexOf(post._id);
         contribution.photos.splice(index, 1);
-        await contribution.save();
+        if (post.coordinate_status) {
+        const index1 = contribution.photos_with_coordinates.indexOf(post._id);
+          contribution.photos_with_coordinates.splice(index1, 1);
+        }
       }
+      await contribution.save();
 
       const user = await User.findById(authUser._id);
       user.total_contribution = contribution.calculateTotalContribution();
       await user.save();
-    }
+    // }
 
     //DELETE POST IMAGES and DELETE POST
     await deleteFile(post.content[0].image.large.private_id);

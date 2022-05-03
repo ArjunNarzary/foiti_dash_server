@@ -159,21 +159,17 @@ exports.addEditReview = async (req, res) => {
     if (review_200_characters => 200) {
       if (!contribution.review_200_characters.includes(reviewModel._id)) {
         contribution.review_200_characters.push(reviewModel._id);
-        if (contribution.reviews.includes(reviewModel._id)) {
-          contribution.reviews = contribution.reviews.filter(
-            (review) => review.toString() != reviewModel._id.toString()
-          );
-        }
       }
     } else {
-      if (!contribution.reviews.includes(reviewModel._id)) {
-        contribution.reviews.push(reviewModel._id);
-        if (contribution.review_200_characters.includes(reviewModel._id)) {
-          contribution.review_200_characters = contribution.review_200_characters.filter(
-            (review) => review.toString() != reviewModel._id.toString()
-          );
-        }
+      if (contribution.review_200_characters.includes(reviewModel._id)) {
+        contribution.review_200_characters = contribution.review_200_characters.filter(
+          (review) => review.toString() != reviewModel._id.toString()
+        );
       }
+    }
+
+    if (!contribution.reviews.includes(reviewModel._id)) {
+      contribution.reviews.push(reviewModel._id);
     }
 
     //Add contribution for rating
@@ -181,6 +177,12 @@ exports.addEditReview = async (req, res) => {
       if (!contribution.ratings.includes(reviewModel._id)) {
         contribution.ratings.push(reviewModel._id);
       }
+    }else{
+      if (contribution.ratings.includes(reviewModel._id)) {
+        contribution.ratings = contribution.ratings.filter(
+          (review) => review.toString() != reviewModel._id.toString()
+        );
+      } 
     }
 
     await contribution.save();
