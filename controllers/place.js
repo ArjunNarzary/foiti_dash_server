@@ -1,7 +1,9 @@
 const { validationResult } = require("express-validator");
+const Contribution = require("../models/Contribution");
 const Place = require("../models/Place");
 const Post = require("../models/Post");
 const Review = require("../models/Review");
+const User = require("../models/User");
 
 function createError(errors, validate) {
   const arrError = validate.array();
@@ -143,9 +145,49 @@ exports.addEditReview = async (req, res) => {
       });
 
       place.review_id.push(reviewModel._id);
-
       place.save();
     }
+
+    //Add contribution
+    //FIND CONTRIBUTION OR CREATE NEW
+    let contribution = await Contribution.findOne({ userId: authUser._id });
+    if (!contribution) {
+      contribution = await Contribution({ userId: authUser._id });
+    }
+    let review_200_characters = review.length;
+    //Add contribution for review
+    if (review_200_characters => 200) {
+      if (!contribution.review_200_characters.includes(reviewModel._id)) {
+        contribution.review_200_characters.push(reviewModel._id);
+        if (contribution.reviews.includes(reviewModel._id)) {
+          contribution.reviews = contribution.reviews.filter(
+            (review) => review.toString() != reviewModel._id.toString()
+          );
+        }
+      }
+    } else {
+      if (!contribution.reviews.includes(reviewModel._id)) {
+        contribution.reviews.push(reviewModel._id);
+        if (contribution.review_200_characters.includes(reviewModel._id)) {
+          contribution.review_200_characters = contribution.review_200_characters.filter(
+            (review) => review.toString() != reviewModel._id.toString()
+          );
+        }
+      }
+    }
+
+    //Add contribution for rating
+    if(rating != "" && rating != undefined){
+      if (!contribution.ratings.includes(reviewModel._id)) {
+        contribution.ratings.push(reviewModel._id);
+      }
+    }
+
+    await contribution.save();
+
+    const user = await User.findById(authUser._id);
+    user.total_contribution = contribution.calculateTotalContribution();
+    await user.save();
 
     res.status(200).json({
       success: true,

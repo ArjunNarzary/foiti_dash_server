@@ -169,7 +169,6 @@ exports.loginUser = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.log(error.message);
     errors.general = "Something went wrong while logging in";
     return res.status(500).json({
       success: false,

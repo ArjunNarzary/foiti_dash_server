@@ -95,7 +95,6 @@ exports.createPost = async (req, res) => {
     //Resize Image for small
     const sharpSmall = await sharp(req.file.path)
       .resize(150, 150, { fit: "cover" })
-      // .resize(500)
       .withMetadata()
       .toBuffer();
     const resultSmall = await uploadFile(req.file, sharpSmall);
@@ -155,8 +154,6 @@ exports.createPost = async (req, res) => {
     if (uploaded.length > 0) {
       uploadedBefore = true;
     }
-
-    let contributionCount = 0;
 
     const content = [
       {
@@ -255,14 +252,9 @@ exports.createPost = async (req, res) => {
     });
   } catch (error) {
     errors.general = error.message;
+    console.log(error);
     if (req.file) {
       await unlinkFile(req.file.path);
-    }
-    //IF UPLOADED DELETE FROM S3
-    if (resultThumb.Key || resultLarge.Key) {
-      await deleteFile(resultThumb.Key);
-      await deleteFile(resultLarge.Key);
-      await deleteFile(resultSmall.Key);
     }
     return res.status(500).json({
       success: false,
@@ -351,7 +343,7 @@ exports.editPost = async (req, res) => {
             const placeCreator = await User.findById(placeCreated.user);
             //REMOVE PLACE FROM CONTRIBUTION TABLE
             const contribution = await Contribution.findOne({
-              user_id: placeCreator._id,
+              userId: placeCreator._id,
             });
             if (contribution.added_places.includes(place._id)) {
               const index = contribution.added_places.indexOf(place._id);
@@ -365,7 +357,9 @@ exports.editPost = async (req, res) => {
 
             await placeCreated.deleteOne();
           }
-          await place.deleteOne();
+          if(place.reviewed_status === false){
+            await place.deleteOne();
+          }
         }
         samePlace = false;
       }
@@ -392,7 +386,7 @@ exports.editPost = async (req, res) => {
     ) {
       const currentUser = await User.findById(authUser._id);
       const currentUserContribution = await Contribution.findOne({
-        user_id: authUser._id,
+        userId: authUser._id,
       });
 
       //Add to placeCreatedTableBy
@@ -400,7 +394,7 @@ exports.editPost = async (req, res) => {
         await PlaceCreatedBy.create({
           place: place._id,
           user: authUser._id,
-        });
+        });+
 
         //ADD to contribution table
         currentUserContribution.added_places.push(place._id);
