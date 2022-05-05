@@ -201,34 +201,31 @@ exports.createPost = async (req, res) => {
 
     //ADD POST IN CONTRIBUTION
     contribution.photos.push(post._id);
+    //Add to placeCreatedTableBy
+    if (newPlaceCreated) {
+      await PlaceCreatedBy.create({
+        place: place._id,
+        user: user._id,
+      });
+      contribution.added_places.push(place._id);
+    } else {
+      //ADD to contribution table if this place creation contribution is not added before
+      const findPostCreatedBy = await PlaceCreatedBy.findOne({
+        place: place._id,
+      });
+      if (!findPostCreatedBy) {
+        await PlaceCreatedBy.create({
+          place: place._id,
+          user: user._id,
+        });
+        contribution.added_places.push(place._id);
+      }
+    }
     //IF IMAGE HAS COORDINATES
     if (
       post.content[0].coordinate.lat !== "" &&
       post.content[0].coordinate.lng !== ""
     ) {
-      //Add to placeCreatedTableBy
-      if (newPlaceCreated) {
-        await PlaceCreatedBy.create({
-          place: place._id,
-          user: user._id,
-        });
-
-        //ADD to contribution table
-        contribution.added_places.push(place._id);
-      } else {
-        //ADD to contribution table if this place creation contribution is not added before
-        const findPostCreatedBy = await PlaceCreatedBy.findOne({
-          place: place._id,
-        });
-        if (!findPostCreatedBy) {
-          await PlaceCreatedBy.create({
-            place: place._id,
-            user: user._id,
-          });
-          contribution.added_places.push(place._id);
-        }
-      }
-
       //ADD POST TO CONTRIBUTION TABLE
       contribution.photos_with_coordinates.push(post._id);
       post.coordinate_status = true;
@@ -382,10 +379,6 @@ exports.editPost = async (req, res) => {
     }
 
     //IF IMAGE HAS COORDINATES
-    if (
-      post.content[0].coordinate.lat !== "" &&
-      post.content[0].coordinate.lng !== ""
-    ) {
       const currentUser = await User.findById(authUser._id);
       const currentUserContribution = await Contribution.findOne({
         userId: authUser._id,
@@ -419,7 +412,6 @@ exports.editPost = async (req, res) => {
       await currentUserContribution.save();
       currentUser.total_contribution = currentUserContribution.calculateTotalContribution();
       await currentUser.save();
-    }
 
     //UPDATE POST AND UPDATE PLACE TABLE
 
@@ -808,7 +800,7 @@ exports.randomPosts = async (req, res) => {
         .where("user")
         .ne(authUser._id)
         .populate("place")
-        .limit(500)
+        .limit(6)
         .sort({ createdAt: -1 });
     } else {
       //Random post form explorer screen, showing all posts
