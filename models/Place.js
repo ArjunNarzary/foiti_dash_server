@@ -61,6 +61,10 @@ const placeSchema = new mongoose.Schema(
     email: String,
     phone_number: String,
     website: String,
+    view:[{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PlaceView",
+    }],
     direction_clicked: [
       {
         user: {
@@ -129,6 +133,38 @@ placeSchema.virtual("avgRating").get(function () {
   }else{
     return 0;
   }
+});
+
+//SET VIRTUAL FOR FOLLOWING COUNT
+placeSchema.virtual("display_address_for_own_country").get(function () {
+  let address = this.types[0] != "administrative_area_level_1" ? this.address.administrative_area_level_1 : "";
+  if (
+    this.address.administrative_area_level_2 != undefined &&
+    this.address.administrative_area_level_2 != this.name
+  ) {
+    address = this.address.administrative_area_level_2 + ", " + address;
+  } else if (
+    this.address.natural_feature != undefined &&
+    this.address.natural_feature != this.name
+  ) {
+    address = this.address.natural_feature + ", " + address;
+  } else if (
+    this.address.sublocality_level_1 != undefined &&
+    this.address.sublocality_level_1 != this.name
+  ) {
+    address = this.address.sublocality_level_1 + ", " + address;
+  } else if (
+    this.address.sublocality_level_2 != undefined &&
+    this.address.sublocality_level_2 != this.name
+  ) {
+    address = this.address.sublocality_level_2 + ", " + address;
+  } else if (
+    this.address.locality != undefined &&
+    this.address.locality != this.name
+  ) {
+    address = this.address.locality + ", " + address;
+  }
+  return address;
 });
 
 module.exports = mongoose.model("Place", placeSchema);

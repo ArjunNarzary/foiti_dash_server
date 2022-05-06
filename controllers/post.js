@@ -14,6 +14,7 @@ const SavePostPlace = require("../models/SavePostPlace");
 const Contribution = require("../models/Contribution");
 const { getCountry } = require("../utils/getCountry");
 const Review = require("../models/Review");
+const PostView = require("../models/PostView");
 
 exports.createContributionPoints = async (req, res) => {
   try {
@@ -462,6 +463,18 @@ exports.viewPost = async (req, res) => {
       });
     }
 
+    //Insert in post view Table
+    if(post.user._id.toString() !== authUser._id.toString()){
+      let postView = await PostView.findOne({$and: [{post: post._id}, {user: authUser._id}]});
+      if(!postView){
+        postView = await PostView.create({post: post._id, user: authUser._id});
+        post.view.push(postView._id);
+        await post.save();
+      }
+
+      postView.save();
+    }
+
     let liked = false;
     if (await post.hasLiked(authUser._id)) {
       liked = true;
@@ -476,11 +489,10 @@ exports.viewPost = async (req, res) => {
     }
 
     if (post.place.address.short_country == country) {
-      post.place.address.country = "";
       post.place.local_address = post.display_address_for_own_country;
     } else {
       let state = "";
-      if (post.place.address.administrative_area_level_1 != null) {
+      if (post.place.address.administrative_area_level_1 != null && post.place.types[0] != "administrative_area_level_1") {
         state = post.place.address.administrative_area_level_1;
       } else if (post.place.address.administrative_area_level_2 != null) {
         state = post.place.address.administrative_area_level_2;
@@ -494,7 +506,11 @@ exports.viewPost = async (req, res) => {
         state = post.place.address.neighborhood;
       }
 
-      post.place.short_address = state + ", " + post.place.address.country;
+      if (state != "") {
+        state = state + ", ";
+      }
+
+      post.place.short_address = state + post.place.address.country;
     }
 
     return res.status(200).json({
@@ -851,7 +867,6 @@ exports.randomPosts = async (req, res) => {
     randomPosts.forEach((post) => {
       // console.log("post1", post.display_address_for_own_country);
       if (post.place.address.short_country == country) {
-        post.place.address.country = "";
         post.place.local_address = post.display_address_for_own_country;
       } else {
         let state = "";
@@ -965,7 +980,6 @@ exports.viewFollowersPosts = async (req, res) => {
     posts.forEach((post) => {
       // console.log("post1", post.display_address_for_own_country);
       if (post.place.address.short_country == country) {
-        post.place.address.country = "";
         post.place.local_address = post.display_address_for_own_country;
       } else {
         let state = "";

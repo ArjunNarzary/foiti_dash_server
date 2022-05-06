@@ -1,9 +1,11 @@
 const { validationResult } = require("express-validator");
 const Contribution = require("../models/Contribution");
 const Place = require("../models/Place");
+const PlaceView = require("../models/PlaceView");
 const Post = require("../models/Post");
 const Review = require("../models/Review");
 const User = require("../models/User");
+const { getCountry } = require("../utils/getCountry");
 
 function createError(errors, validate) {
   const arrError = validate.array();
@@ -37,13 +39,50 @@ exports.searchPlace = async (req, res) => {
 exports.autocompletePlace = async (req, res) => {
   try {
     const { place, count } = req.query;
+    const { ip } = req.headers;
     const trimedPlace = place.trim();
+    console.log(ip);
 
     const results = await Place.find({
       name: { $regex: `${trimedPlace}`, $options: "i" },
     })
-      .select("_id name address cover_photo")
+      .select("_id name address cover_photo short_address local_address types")
       .limit(count);
+
+    //FORMAT ADDRESS
+    let country = "";
+    const location = await getCountry(ip);
+    if (location != null && location.country !== undefined) {
+      country = location.country;
+    } else {
+      country = "IN";
+    }
+
+    results.forEach((place) => {
+      if (place.address.short_country == country) {
+        place.local_address = place.display_address_for_own_country;
+      } else {
+        let state = "";
+        if (place.address.administrative_area_level_1 != null && place.types[0] != "administrative_area_level_1") {
+          state = place.address.administrative_area_level_1;
+        } else if (place.address.administrative_area_level_2 != null) {
+          state = place.address.administrative_area_level_2;
+        } else if (place.address.locality != null) {
+          state = place.address.locality;
+        } else if (place.address.sublocality_level_1 != null) {
+          state = place.address.sublocality_level_1;
+        } else if (place.address.sublocality_level_2 != null) {
+          state = place.address.sublocality_level_2;
+        } else if (place.address.neighborhood != null) {
+          state = place.address.neighborhood;
+        }
+        if (state != "") {
+          state = state + ", ";
+        }
+
+        place.short_address = state + place.address.country;
+      }
+    });
 
     return res.status(200).json({
       success: true,
@@ -62,6 +101,8 @@ exports.getPlace = async (req, res) => {
   let errors = {};
   try {
     const { place_id } = req.params;
+    const { authUser } = req.body;
+    const { ip } = req.headers;
     const place = await Place.findById(place_id).populate("review_id");
     // place.totalRating =
 
@@ -72,6 +113,16 @@ exports.getPlace = async (req, res) => {
         error: errors,
       });
     }
+
+    //Insert view in Place View table
+    let placeView = await PlaceView.findOne({ $and: [{ place: place._id }, { user: authUser._id }] });
+    if (!placeView) {
+      placeView = await PlaceView.create({ place: place._id, user: authUser._id });
+      place.view.push(placeView._id);
+      await place.save();
+    }
+
+    placeView.save();
 
     // format Type
     let formattedType = "";
@@ -84,6 +135,39 @@ exports.getPlace = async (req, res) => {
       formattedType = capitalizedType.join(" ");
     }
 
+    //FORMAT ADDRESS
+    let country = "";
+    const location = await getCountry(ip);
+    if (location != null && location.country !== undefined) {
+      country = location.country;
+    } else {
+      country = "IN";
+    }
+
+    if (place.address.short_country == country) {
+      place.local_address = place.display_address_for_own_country;
+    } else {
+      let state = "";
+      if (place.address.administrative_area_level_1 != null && place.types[0] != "administrative_area_level_1") {
+        state = place.address.administrative_area_level_1;
+      } else if (place.address.administrative_area_level_2 != null) {
+        state = place.address.administrative_area_level_2;
+      } else if (place.address.locality != null) {
+        state = place.address.locality;
+      } else if (place.address.sublocality_level_1 != null) {
+        state = place.address.sublocality_level_1;
+      } else if (place.address.sublocality_level_2 != null) {
+        state = place.address.sublocality_level_2;
+      } else if (place.address.neighborhood != null) {
+        state = place.address.neighborhood;
+      }
+      if(state != ""){
+        state = state+", ";
+      }
+
+      place.short_address = state + place.address.country;
+    }
+
     return res.status(200).json({
       success: true,
       place,
@@ -91,6 +175,7 @@ exports.getPlace = async (req, res) => {
       avgRating: place.avgRating,
     });
   } catch (error) {
+    console.log(error);
     errors.general = "Something went wrong";
     return res.status(500).json({
       success: false,

@@ -21,12 +21,6 @@ const contributionSchema = new Schema(
         ref: "Post",
       },
     ],
-    // places: [
-    //   {
-    //     type: Schema.Types.ObjectId,
-    //     ref: "Place",
-    //   },
-    // ],
     added_places: [
       {
         type: Schema.Types.ObjectId,
