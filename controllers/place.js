@@ -1,5 +1,6 @@
 const { validationResult } = require("express-validator");
 const Contribution = require("../models/Contribution");
+const DirectionClick = require("../models/DirectionClick");
 const Place = require("../models/Place");
 const PlaceView = require("../models/PlaceView");
 const Post = require("../models/Post");
@@ -63,7 +64,10 @@ exports.autocompletePlace = async (req, res) => {
         place.local_address = place.display_address_for_own_country;
       } else {
         let state = "";
-        if (place.address.administrative_area_level_1 != null && place.types[0] != "administrative_area_level_1") {
+        if (
+          place.address.administrative_area_level_1 != null &&
+          place.types[0] != "administrative_area_level_1"
+        ) {
           state = place.address.administrative_area_level_1;
         } else if (place.address.administrative_area_level_2 != null) {
           state = place.address.administrative_area_level_2;
@@ -115,9 +119,14 @@ exports.getPlace = async (req, res) => {
     }
 
     //Insert view in Place View table
-    let placeView = await PlaceView.findOne({ $and: [{ place: place._id }, { user: authUser._id }] });
+    let placeView = await PlaceView.findOne({
+      $and: [{ place: place._id }, { user: authUser._id }],
+    });
     if (!placeView) {
-      placeView = await PlaceView.create({ place: place._id, user: authUser._id });
+      placeView = await PlaceView.create({
+        place: place._id,
+        user: authUser._id,
+      });
       place.view.push(placeView._id);
       await place.save();
     }
@@ -148,7 +157,10 @@ exports.getPlace = async (req, res) => {
       place.local_address = place.display_address_for_own_country;
     } else {
       let state = "";
-      if (place.address.administrative_area_level_1 != null && place.types[0] != "administrative_area_level_1") {
+      if (
+        place.address.administrative_area_level_1 != null &&
+        place.types[0] != "administrative_area_level_1"
+      ) {
         state = place.address.administrative_area_level_1;
       } else if (place.address.administrative_area_level_2 != null) {
         state = place.address.administrative_area_level_2;
@@ -161,8 +173,8 @@ exports.getPlace = async (req, res) => {
       } else if (place.address.neighborhood != null) {
         state = place.address.neighborhood;
       }
-      if(state != ""){
-        state = state+", ";
+      if (state != "") {
+        state = state + ", ";
       }
 
       place.short_address = state + place.address.country;
@@ -241,15 +253,16 @@ exports.addEditReview = async (req, res) => {
     }
     let review_200_characters = review.length;
     //Add contribution for review
-    if (review_200_characters => 200) {
+    if ((review_200_characters) => 200) {
       if (!contribution.review_200_characters.includes(reviewModel._id)) {
         contribution.review_200_characters.push(reviewModel._id);
       }
     } else {
       if (contribution.review_200_characters.includes(reviewModel._id)) {
-        contribution.review_200_characters = contribution.review_200_characters.filter(
-          (review) => review.toString() != reviewModel._id.toString()
-        );
+        contribution.review_200_characters =
+          contribution.review_200_characters.filter(
+            (review) => review.toString() != reviewModel._id.toString()
+          );
       }
     }
 
@@ -258,16 +271,16 @@ exports.addEditReview = async (req, res) => {
     }
 
     //Add contribution for rating
-    if(rating != "" && rating != undefined){
+    if (rating != "" && rating != undefined) {
       if (!contribution.ratings.includes(reviewModel._id)) {
         contribution.ratings.push(reviewModel._id);
       }
-    }else{
+    } else {
       if (contribution.ratings.includes(reviewModel._id)) {
         contribution.ratings = contribution.ratings.filter(
           (review) => review.toString() != reviewModel._id.toString()
         );
-      } 
+      }
     }
 
     await contribution.save();
@@ -408,6 +421,52 @@ exports.getPlacePosts = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: errors,
+    });
+  }
+};
+
+//ADD DIRECTION CLICKED DETAILS
+exports.addPlaceDirectionClickedDetails = async (req, res) => {
+  let errors = {};
+  try {
+    const placeId = req.params.id;
+    const { authUser } = req.body;
+    const place = await Place.findById(placeId);
+
+    if (!place) {
+      errors.general = "Place not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    let directionClicked = await DirectionClick.findOne({
+      $and: [{ place: placeId }, { user: authUser._id }],
+    });
+
+    if (!directionClicked) {
+      directionClicked = DirectionClick.create({
+        place: placeId,
+        user: authUser._id,
+      });
+
+      place.direction_clicked.push(directionClicked._id);
+      await place.save();
+    }
+
+    await directionClicked.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Direction clicked details added",
+    });
+  } catch (error) {
+    console.log(error);
+    errors.general = "Something went wrong";
+    return res.status(500).json({
+      success: false,
+      message: errors,
     });
   }
 };

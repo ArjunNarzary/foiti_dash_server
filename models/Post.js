@@ -42,12 +42,6 @@ const postSchema = new mongoose.Schema(
       type: String,
       maxlength: [1000, "Caption should be maximum of 1000 characters"],
     },
-    like: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
     comments: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -70,25 +64,25 @@ const postSchema = new mongoose.Schema(
     },
     direction_clicked: [
       {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-        ceatedAt: {
-          type: Date,
-          default: Date.now,
-          immutable: true,
-        },
-        updateAt: {
-          type: Date,
-          default: Date.now,
-        },
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "DirectionClick",
       },
     ],
-    view: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "PostView",
-    }],
+    direction_clicked_count: Number,
+    like: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    like_count: Number,
+    view: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PostView",
+      },
+    ],
+    view_count: Number,
     status: {
       type: String,
       enum: ["silent", "active", "deactivated", "blocked"],
@@ -114,7 +108,10 @@ postSchema.methods.hasLiked = async function (id) {
 //SET VIRTUAL TO SET SAME COUNTRY
 //SET VIRTUAL FOR FOLLOWING COUNT
 postSchema.virtual("display_address_for_own_country").get(function () {
-  let address = this.place.types[0] != "administrative_area_level_1" ? this.place.address.administrative_area_level_1 : "";
+  let address =
+    this.place.types[0] != "administrative_area_level_1"
+      ? this.place.address.administrative_area_level_1
+      : "";
   if (
     this.place.address.administrative_area_level_2 != undefined &&
     this.place.address.administrative_area_level_2 != this.place.name
@@ -142,6 +139,20 @@ postSchema.virtual("display_address_for_own_country").get(function () {
     address = this.place.address.locality + ", " + address;
   }
   return address;
+});
+
+//Update like count
+postSchema.pre("save", function (next) {
+  if (this.isModified("view")) {
+    this.view_count = this.view.length;
+  }
+  if (this.isModified("like")) {
+    this.like_count = this.like.length;
+  }
+  if (this.isModified("direction_clicked")) {
+    this.direction_clicked_count = this.direction_clicked.length;
+  }
+  next();
 });
 
 module.exports = mongoose.model("Post", postSchema);

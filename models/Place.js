@@ -10,7 +10,7 @@ const placeSchema = new mongoose.Schema(
     google_place_id: {
       type: String,
       index: true,
-      unique:true
+      unique: true,
     },
     // address: {
     //   route: String,
@@ -26,7 +26,7 @@ const placeSchema = new mongoose.Schema(
     //   postal_code: String,
     //   premise: String,
     // },
-    address:{},
+    address: {},
     short_address: String,
     local_address: String,
     coordinates: {
@@ -61,27 +61,20 @@ const placeSchema = new mongoose.Schema(
     email: String,
     phone_number: String,
     website: String,
-    view:[{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "PlaceView",
-    }],
-    direction_clicked: [
+    view: [
       {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-        ceatedAt: {
-          type: Date,
-          default: Date.now,
-          immutable: true,
-        },
-        updateAt: {
-          type: Date,
-          default: Date.now,
-        },
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PlaceView",
       },
     ],
+    view_count: Number,
+    direction_clicked: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "DirectionClick",
+      },
+    ],
+    direction_clicked_count: Number,
     review_id: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -119,8 +112,8 @@ const placeSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true });
-
+  { timestamps: true }
+);
 
 //CALCULATE AVG RATING
 placeSchema.virtual("avgRating").get(function () {
@@ -130,14 +123,17 @@ placeSchema.virtual("avgRating").get(function () {
       sum += this.review_id[i].rating;
     }
     return sum / this.review_id.length;
-  }else{
+  } else {
     return 0;
   }
 });
 
 //SET VIRTUAL FOR FOLLOWING COUNT
 placeSchema.virtual("display_address_for_own_country").get(function () {
-  let address = this.types[0] != "administrative_area_level_1" ? this.address.administrative_area_level_1 : "";
+  let address =
+    this.types[0] != "administrative_area_level_1"
+      ? this.address.administrative_area_level_1
+      : "";
   if (
     this.address.administrative_area_level_2 != undefined &&
     this.address.administrative_area_level_2 != this.name
@@ -165,6 +161,17 @@ placeSchema.virtual("display_address_for_own_country").get(function () {
     address = this.address.locality + ", " + address;
   }
   return address;
+});
+
+//Update view count
+placeSchema.pre("save", function (next) {
+  if (this.isModified("view")) {
+    this.view_count = this.view.length;
+  }
+  if (this.isModified("direction_clicked")) {
+    this.direction_clicked_count = this.direction_clicked.length;
+  }
+  next();
 });
 
 module.exports = mongoose.model("Place", placeSchema);

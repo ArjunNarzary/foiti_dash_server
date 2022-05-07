@@ -15,6 +15,7 @@ const Contribution = require("../models/Contribution");
 const { getCountry } = require("../utils/getCountry");
 const Review = require("../models/Review");
 const PostView = require("../models/PostView");
+const DirectionClick = require("../models/DirectionClick");
 
 exports.createContributionPoints = async (req, res) => {
   try {
@@ -77,7 +78,7 @@ exports.createPost = async (req, res) => {
     //UPLOAD IMAGE TO S3
     //Resize post Image if width is larger than 1080
     // let resultLarge = {};
-    // if (details.images[0].width > 1080) 
+    // if (details.images[0].width > 1080)
 
     const sharpLarge = await sharp(req.file.path)
       .resize(1080)
@@ -351,13 +352,14 @@ exports.editPost = async (req, res) => {
               await contribution.save();
             }
             if (placeCreator) {
-              placeCreator.total_contribution = contribution.calculateTotalContribution();
+              placeCreator.total_contribution =
+                contribution.calculateTotalContribution();
               await placeCreator.save();
             }
 
             await placeCreated.deleteOne();
           }
-          if(place.reviewed_status === false){
+          if (place.reviewed_status === false) {
             await place.deleteOne();
           }
         }
@@ -380,39 +382,41 @@ exports.editPost = async (req, res) => {
     }
 
     //IF IMAGE HAS COORDINATES
-      const currentUser = await User.findById(authUser._id);
-      const currentUserContribution = await Contribution.findOne({
-        userId: authUser._id,
+    const currentUser = await User.findById(authUser._id);
+    const currentUserContribution = await Contribution.findOne({
+      userId: authUser._id,
+    });
+
+    //Add to placeCreatedTableBy
+    if (newPlaceCreated) {
+      await PlaceCreatedBy.create({
+        place: place._id,
+        user: authUser._id,
       });
-
-      //Add to placeCreatedTableBy
-      if (newPlaceCreated) {
-        await PlaceCreatedBy.create({
-          place: place._id,
-          user: authUser._id,
-        });+
-
+      +(
         //ADD to contribution table
-        currentUserContribution.added_places.push(place._id);
-      } else {
-        //IF PLACE IS SAME AND FIRST POST WITH COORDINATES CREATED
-        if (samePlace) {
-          //ADD to contribution table if this place creeation contribution is not added before
-          const findPostCreatedBy = await PlaceCreatedBy.findOne({
+        currentUserContribution.added_places.push(place._id)
+      );
+    } else {
+      //IF PLACE IS SAME AND FIRST POST WITH COORDINATES CREATED
+      if (samePlace) {
+        //ADD to contribution table if this place creeation contribution is not added before
+        const findPostCreatedBy = await PlaceCreatedBy.findOne({
+          place: place._id,
+        });
+        if (!findPostCreatedBy) {
+          await PlaceCreatedBy.create({
             place: place._id,
+            user: authUser._id,
           });
-          if (!findPostCreatedBy) {
-            await PlaceCreatedBy.create({
-              place: place._id,
-              user: authUser._id,
-            });
-            currentUserContribution.added_places.push(place._id);
-          }
+          currentUserContribution.added_places.push(place._id);
         }
       }
-      await currentUserContribution.save();
-      currentUser.total_contribution = currentUserContribution.calculateTotalContribution();
-      await currentUser.save();
+    }
+    await currentUserContribution.save();
+    currentUser.total_contribution =
+      currentUserContribution.calculateTotalContribution();
+    await currentUser.save();
 
     //UPDATE POST AND UPDATE PLACE TABLE
 
@@ -464,10 +468,15 @@ exports.viewPost = async (req, res) => {
     }
 
     //Insert in post view Table
-    if(post.user._id.toString() !== authUser._id.toString()){
-      let postView = await PostView.findOne({$and: [{post: post._id}, {user: authUser._id}]});
-      if(!postView){
-        postView = await PostView.create({post: post._id, user: authUser._id});
+    if (post.user._id.toString() !== authUser._id.toString()) {
+      let postView = await PostView.findOne({
+        $and: [{ post: post._id }, { user: authUser._id }],
+      });
+      if (!postView) {
+        postView = await PostView.create({
+          post: post._id,
+          user: authUser._id,
+        });
         post.view.push(postView._id);
         await post.save();
       }
@@ -492,7 +501,10 @@ exports.viewPost = async (req, res) => {
       post.place.local_address = post.display_address_for_own_country;
     } else {
       let state = "";
-      if (post.place.address.administrative_area_level_1 != null && post.place.types[0] != "administrative_area_level_1") {
+      if (
+        post.place.address.administrative_area_level_1 != null &&
+        post.place.types[0] != "administrative_area_level_1"
+      ) {
         state = post.place.address.administrative_area_level_1;
       } else if (post.place.address.administrative_area_level_2 != null) {
         state = post.place.address.administrative_area_level_2;
@@ -621,20 +633,20 @@ exports.deletePost = async (req, res) => {
     }
     //DECREASE COTRIBUTION FOR CURRENT POST
     // if (post.coordinate_status) {
-      const contribution = await Contribution.findOne({ userId: authUser._id });
-      if (contribution) {
-        const index = contribution.photos.indexOf(post._id);
-        contribution.photos.splice(index, 1);
-        if (post.coordinate_status) {
+    const contribution = await Contribution.findOne({ userId: authUser._id });
+    if (contribution) {
+      const index = contribution.photos.indexOf(post._id);
+      contribution.photos.splice(index, 1);
+      if (post.coordinate_status) {
         const index1 = contribution.photos_with_coordinates.indexOf(post._id);
-          contribution.photos_with_coordinates.splice(index1, 1);
-        }
+        contribution.photos_with_coordinates.splice(index1, 1);
       }
-      await contribution.save();
+    }
+    await contribution.save();
 
-      const user = await User.findById(authUser._id);
-      user.total_contribution = contribution.calculateTotalContribution();
-      await user.save();
+    const user = await User.findById(authUser._id);
+    user.total_contribution = contribution.calculateTotalContribution();
+    await user.save();
     // }
 
     //DELETE POST IMAGES and DELETE POST
@@ -898,7 +910,7 @@ exports.randomPosts = async (req, res) => {
     errors.general = error.message;
     res.status(500).json({
       success: false,
-      error: errors,
+      message: errors,
     });
   }
 };
@@ -1034,7 +1046,52 @@ exports.viewFollowersPosts = async (req, res) => {
     console.log(error);
     return res.status(500).json({
       success: false,
-      error: errors,
+      message: errors,
+    });
+  }
+};
+
+//ADD DIRECTION CLICKED DETAILS TO POST
+exports.addPostDirectionClickedDetails = async (req, res) => {
+  let errors = {};
+  try {
+    const postId = req.params.id;
+    const { authUser } = req.body;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      errors.general = "Post not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    let directionClicked = await DirectionClick.findOne({
+      $and: [{ post: postId }, { user: authUser._id }],
+    });
+    if (!directionClicked) {
+      directionClicked = await DirectionClick.create({
+        post: postId,
+        user: authUser._id,
+      });
+
+      post.direction_clicked.push(directionClicked._id);
+      await post.save();
+    }
+
+    await directionClicked.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Direction clicked successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    errors.general = error.message;
+    return res.status(500).json({
+      success: false,
+      message: errors,
     });
   }
 };

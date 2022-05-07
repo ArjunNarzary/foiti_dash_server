@@ -5,6 +5,7 @@ const {
   addEditReview,
   autocompletePlace,
   getPlacePosts,
+  addPlaceDirectionClickedDetails,
 } = require("../controllers/place");
 const router = express.Router();
 
@@ -21,9 +22,15 @@ router
   .route("/review/:place_id")
   .post(isAuthenticated, validatePlace("addReview"), addEditReview);
 
+//ADD DIRECTION CLIKED DETAILS
+router
+  .route("/directionClick/:id")
+  .post(isAuthenticated, addPlaceDirectionClickedDetails);
+
 //GET PLACE
-router.route("/:place_id")
-      .get(isAuthenticated, getPlace)
-      .post(isAuthenticated, getPlacePosts);
+router
+  .route("/:place_id")
+  .get(isAuthenticated, getPlace)
+  .post(isAuthenticated, getPlacePosts);
 
 module.exports = router;

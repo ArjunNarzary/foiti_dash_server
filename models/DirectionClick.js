@@ -1,15 +1,18 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const postViewSchema = new Schema({
-  post: {
-    type: Schema.Types.ObjectId,
-    ref: "Post",
-    required: true,
-  },
+const directionClickSchema = new Schema({
   user: {
     type: Schema.Types.ObjectId,
     ref: "User",
+  },
+  post: {
+    type: Schema.Types.ObjectId,
+    ref: "Post",
+  },
+  place: {
+    type: Schema.Types.ObjectId,
+    ref: "Place",
   },
   createdAt: {
     type: Date,
@@ -28,4 +31,4 @@ postViewSchema.pre("save", async function (next) {
   next();
 });
 
-module.exports = mongoose.model("PostView", postViewSchema);
+module.exports = mongoose.model("DirectionClick", directionClickSchema);
