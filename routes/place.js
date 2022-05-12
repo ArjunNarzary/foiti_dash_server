@@ -5,7 +5,7 @@ const {
   addEditReview,
   autocompletePlace,
   getPlacePosts,
-  addPlaceDirectionClickedDetails,
+  addPlaceLocationClickedDetails,
 } = require("../controllers/place");
 const router = express.Router();
 
@@ -25,7 +25,7 @@ router
 //ADD DIRECTION CLIKED DETAILS
 router
   .route("/directionClick/:id")
-  .post(isAuthenticated, addPlaceDirectionClickedDetails);
+  .post(isAuthenticated, addPlaceLocationClickedDetails);
 
 //GET PLACE
 router

@@ -22,6 +22,7 @@ const {
   viewFollowDetails,
   recommendedTraveller,
   viewRecommendedTraveller,
+  setExpoToken,
 } = require("../controllers/user");
 const { validateUser } = require("../middlewares/validations/userValidator");
 
@@ -85,6 +86,8 @@ router.route("/followDetails/:id")
 
 router.route("/recommendedTravellers").get(isAuthenticated, viewRecommendedTraveller);
 router.route("/recommended/:id").get(isAuthenticated, recommendedTraveller);
+//SET EXPO TOKEN
+router.route("/setExpoToken").post(isAuthenticated, setExpoToken);
 
 //FOLLOW UNFOLLOW VIEW OTHERS PROFILE USER
 router

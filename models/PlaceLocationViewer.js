@@ -1,15 +1,14 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const postViewSchema = new Schema({
-  post: {
-    type: Schema.Types.ObjectId,
-    ref: "Post",
-    required: true,
-  },
+const placeLocationViewerSchema = new Schema({
   user: {
     type: Schema.Types.ObjectId,
     ref: "User",
+  },
+  place: {
+    type: Schema.Types.ObjectId,
+    ref: "Place",
   },
   createdAt: {
     type: Date,
@@ -23,9 +22,9 @@ const postViewSchema = new Schema({
 });
 
 //update date
-postViewSchema.pre("save", async function (next) {
+placeLocationViewerSchema.pre("save", async function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-module.exports = mongoose.model("PostView", postViewSchema);
+module.exports = mongoose.model("PlaceLocationViewer", placeLocationViewerSchema);

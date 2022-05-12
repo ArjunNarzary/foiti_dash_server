@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const placeViewSchema = new Schema({
+const placeViewerSchema = new Schema({
     place: {
         type: Schema.Types.ObjectId,
         ref: "Place",
@@ -22,10 +22,10 @@ const placeViewSchema = new Schema({
     },
 });
 
-//HASH PASSWORD
-placeViewSchema.pre("save", async function (next) {
+//UPDATE DATE
+placeViewerSchema.pre("save", async function (next) {
     this.updatedAt = Date.now();
     next();
 });
 
-module.exports = mongoose.model("PlaceView", placeViewSchema);
+module.exports = mongoose.model("PlaceViewer", placeViewerSchema);

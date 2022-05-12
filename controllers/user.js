@@ -14,6 +14,7 @@ const crypto = require("crypto");
 const { sendEmail } = require("../middlewares/sentEmail");
 const { getCountry } = require("../utils/getCountry");
 const RecommendedTraveller = require("../models/RecommendedTraveller");
+var ObjectId = require('mongoose').Types.ObjectId;
 
 function createError(errors, validate) {
   const arrError = validate.array();
@@ -443,9 +444,15 @@ exports.viewOwnProfile = async (req, res) => {
         .ne(false)
         .populate("place")
     //Unique Place
+    let helpNavigate = 0;
     const totalPlaces = post1.map((post) => {
+      if(post.location_viewers_count != undefined){
+        helpNavigate = helpNavigate + post.location_viewers_count;
+      }
       return post.place._id;
     });
+
+    //COUNT HELPED NAVIGATE
 
     const uniquePlacesVisited = [...new Set(totalPlaces)];
     const placesVisited = uniquePlacesVisited.length;
@@ -473,6 +480,7 @@ exports.viewOwnProfile = async (req, res) => {
       totalPosts,
       placesVisited,
       countryVisited,
+      helpNavigate,
     });
   } catch (error) {
     console.log(error.message);
@@ -490,6 +498,13 @@ exports.viewOthersProfile = async (req, res) => {
   try {
     const profileId = req.params.id;
     const { authUser } = req.body;
+    //Validate Object ID
+    if (!ObjectId.isValid(profileId)){
+      return res.status(400).json({
+          success: false,
+          message: "Invalid user"
+      });
+    }
 
     const profileUser = await User.findById(profileId);
     if (!profileUser) {
@@ -529,9 +544,13 @@ exports.viewOthersProfile = async (req, res) => {
 
     const totalPosts = posts.length;
     //Unique Place
+    let helpNavigate = 0;
     const totalPlaces = posts.map((post) => {
-            return post.place._id;
-          });
+        if (post.location_viewers_count != undefined) {
+          helpNavigate = helpNavigate + post.location_viewers_count;
+        }
+        return post.place._id;
+      });
     const uniquePlacesVisited = [...new Set(totalPlaces)];
     const placesVisited = uniquePlacesVisited.length;
 
@@ -570,6 +589,7 @@ exports.viewOthersProfile = async (req, res) => {
       totalPosts,
       placesVisited,
       countryVisited,
+      helpNavigate
     });
   } catch (error) {
     console.log(error);
@@ -1199,6 +1219,28 @@ exports.viewRecommendedTraveller = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: errors,
+    });
+  }
+}
+
+//SET EXPO TOKEN
+exports.setExpoToken = async (req, res) => {
+  let errors = {};
+  try{
+    let { authUser, expoToken } = req.body;
+    if(expoToken != "" || expoToken != undefined){
+      const user = await User.findById(authUser._id);
+      user.expoToken = expoToken;
+      await user.save();
+    }
+    return res.status(200).json({
+      success: true,
+    });
+  }catch(error){
+    errors.general = error.message;
+    return res.status(500).json({
+      success: false,
+      messgae: errors
     });
   }
 }

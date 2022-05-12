@@ -11,7 +11,7 @@ const {
   randomPosts,
   viewFollowersPosts,
   deletePost,
-  addPostDirectionClickedDetails,
+  addPostLocationClickedDetails,
 } = require("../controllers/post");
 const { isAuthenticated } = require("../middlewares/auth");
 const router = express.Router();
@@ -36,7 +36,7 @@ router.route("/followersPosts").post(isAuthenticated, viewFollowersPosts);
 //ADD DIRECTION CLIKED DETAILS
 router
   .route("/directionClick/:id")
-  .post(isAuthenticated, addPostDirectionClickedDetails);
+  .post(isAuthenticated, addPostLocationClickedDetails);
 
 //EDIT, VIEW and DELETE POST
 router

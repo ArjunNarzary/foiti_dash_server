@@ -61,20 +61,20 @@ const placeSchema = new mongoose.Schema(
     email: String,
     phone_number: String,
     website: String,
-    view: [
+    viewers: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "PlaceView",
       },
     ],
-    view_count: Number,
-    direction_clicked: [
+    viewers_count: Number,
+    location_viewers: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "DirectionClick",
       },
     ],
-    direction_clicked_count: Number,
+    location_viewers_count: Number,
     review_id: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -165,11 +165,11 @@ placeSchema.virtual("display_address_for_own_country").get(function () {
 
 //Update view count
 placeSchema.pre("save", function (next) {
-  if (this.isModified("view")) {
-    this.view_count = this.view.length;
+  if (this.isModified("viewers")) {
+    this.viewers_count = this.viewers.length;
   }
-  if (this.isModified("direction_clicked")) {
-    this.direction_clicked_count = this.direction_clicked.length;
+  if (this.isModified("location_viewers")) {
+    this.location_viewers_count = this.location_viewers.length;
   }
   next();
 });

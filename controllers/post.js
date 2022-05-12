@@ -14,8 +14,9 @@ const SavePostPlace = require("../models/SavePostPlace");
 const Contribution = require("../models/Contribution");
 const { getCountry } = require("../utils/getCountry");
 const Review = require("../models/Review");
-const PostView = require("../models/PostView");
-const DirectionClick = require("../models/DirectionClick");
+const PostViewer = require("../models/PostViewer");
+const PostLocationViewer = require("../models/PostLocationViewer");
+var ObjectId = require('mongoose').Types.ObjectId;
 
 exports.createContributionPoints = async (req, res) => {
   try {
@@ -457,6 +458,14 @@ exports.viewPost = async (req, res) => {
     const postId = req.params.id;
     const { authUser, ip } = req.body;
 
+    //Validate Object ID
+    if (!ObjectId.isValid(postId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid post"
+      });
+    }
+
     const post = await Post.findById(postId).populate("user").populate("place");
 
     if (!post || post.status === "deactivated") {
@@ -469,19 +478,19 @@ exports.viewPost = async (req, res) => {
 
     //Insert in post view Table
     if (post.user._id.toString() !== authUser._id.toString()) {
-      let postView = await PostView.findOne({
+      let postViewer = await PostViewer.findOne({
         $and: [{ post: post._id }, { user: authUser._id }],
       });
-      if (!postView) {
-        postView = await PostView.create({
+      if (!postViewer) {
+        postViewer = await PostViewer.create({
           post: post._id,
           user: authUser._id,
         });
-        post.view.push(postView._id);
+        post.viewers.push(postViewer._id);
         await post.save();
       }
 
-      postView.save();
+      postViewer.save();
     }
 
     let liked = false;
@@ -931,7 +940,7 @@ exports.viewFollowersPosts = async (req, res) => {
       .select(
         "_id user place createdAt status coordinate_status content caption like comments"
       )
-      .populate("user", "name total_contribution profileImage foiti_ambassador")
+      .populate("user", "name username total_contribution profileImage foiti_ambassador")
       .populate("place", "name address types")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -956,7 +965,7 @@ exports.viewFollowersPosts = async (req, res) => {
         )
         .populate(
           "user",
-          "name total_contribution profileImage foiti_ambassador"
+          "name username total_contribution profileImage foiti_ambassador"
         )
         .populate("place", "name address short_address local_address types")
         .sort({ createdAt: -1 })
@@ -1052,7 +1061,7 @@ exports.viewFollowersPosts = async (req, res) => {
 };
 
 //ADD DIRECTION CLICKED DETAILS TO POST
-exports.addPostDirectionClickedDetails = async (req, res) => {
+exports.addPostLocationClickedDetails = async (req, res) => {
   let errors = {};
   try {
     const postId = req.params.id;
@@ -1067,20 +1076,22 @@ exports.addPostDirectionClickedDetails = async (req, res) => {
       });
     }
 
-    let directionClicked = await DirectionClick.findOne({
-      $and: [{ post: postId }, { user: authUser._id }],
-    });
-    if (!directionClicked) {
-      directionClicked = await DirectionClick.create({
-        post: postId,
-        user: authUser._id,
+    if (post.user.toString() !== authUser._id.toString()) {
+      let locationClicked = await PostLocationViewer.findOne({
+        $and: [{ post: postId }, { user: authUser._id }],
       });
+      if (!locationClicked) {
+        locationClicked = await PostLocationViewer.create({
+          post: postId,
+          user: authUser._id,
+        });
 
-      post.direction_clicked.push(directionClicked._id);
-      await post.save();
+        post.location_viewers.push(locationClicked._id);
+        await post.save();
+      }
+
+      await locationClicked.save();
     }
-
-    await directionClicked.save();
 
     return res.status(200).json({
       success: true,

@@ -122,6 +122,7 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  expoToken: String,
   upload_status: Boolean,
   account_status: {
     type: String,

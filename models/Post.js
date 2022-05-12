@@ -62,13 +62,13 @@ const postSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    direction_clicked: [
+    location_viewers: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "DirectionClick",
       },
     ],
-    direction_clicked_count: Number,
+    location_viewers_count: Number,
     like: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -76,13 +76,13 @@ const postSchema = new mongoose.Schema(
       },
     ],
     like_count: Number,
-    view: [
+    viewers: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "PostView",
+        ref: "PostViewer",
       },
     ],
-    view_count: Number,
+    viewers_count: Number,
     status: {
       type: String,
       enum: ["silent", "active", "deactivated", "blocked"],
@@ -109,9 +109,9 @@ postSchema.methods.hasLiked = async function (id) {
 //SET VIRTUAL FOR FOLLOWING COUNT
 postSchema.virtual("display_address_for_own_country").get(function () {
   let address =
-    this.place.types[0] != "administrative_area_level_1"
-      ? this.place.address.administrative_area_level_1
-      : "";
+  this.place.types[0] != "administrative_area_level_1"
+  ? this.place.address.administrative_area_level_1
+  : "";
   if (
     this.place.address.administrative_area_level_2 != undefined &&
     this.place.address.administrative_area_level_2 != this.place.name
@@ -143,14 +143,14 @@ postSchema.virtual("display_address_for_own_country").get(function () {
 
 //Update like count
 postSchema.pre("save", function (next) {
-  if (this.isModified("view")) {
-    this.view_count = this.view.length;
+  if (this.isModified("viewers")) {
+    this.viewers_count = this.viewers.length;
   }
   if (this.isModified("like")) {
     this.like_count = this.like.length;
   }
-  if (this.isModified("direction_clicked")) {
-    this.direction_clicked_count = this.direction_clicked.length;
+  if (this.isModified("location_viewers")) {
+    this.location_viewers_count = this.location_viewers.length;
   }
   next();
 });

@@ -1,12 +1,13 @@
 const { validationResult } = require("express-validator");
 const Contribution = require("../models/Contribution");
-const DirectionClick = require("../models/DirectionClick");
 const Place = require("../models/Place");
-const PlaceView = require("../models/PlaceView");
+const PlaceViewer = require("../models/PlaceViewer");
 const Post = require("../models/Post");
 const Review = require("../models/Review");
 const User = require("../models/User");
 const { getCountry } = require("../utils/getCountry");
+const PlaceLocationViewer = require("../models/PlaceLocationViewer");
+var ObjectId = require('mongoose').Types.ObjectId;
 
 function createError(errors, validate) {
   const arrError = validate.array();
@@ -107,6 +108,15 @@ exports.getPlace = async (req, res) => {
     const { place_id } = req.params;
     const { authUser } = req.body;
     const { ip } = req.headers;
+
+    //Validate Object ID
+    if (!ObjectId.isValid(place_id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid place ID",
+      });
+    }
+
     const place = await Place.findById(place_id).populate("review_id");
     // place.totalRating =
 
@@ -119,19 +129,19 @@ exports.getPlace = async (req, res) => {
     }
 
     //Insert view in Place View table
-    let placeView = await PlaceView.findOne({
+    let placeViewer = await PlaceViewer.findOne({
       $and: [{ place: place._id }, { user: authUser._id }],
     });
-    if (!placeView) {
-      placeView = await PlaceView.create({
+    if (!placeViewer) {
+      placeViewer = await PlaceViewer.create({
         place: place._id,
         user: authUser._id,
       });
-      place.view.push(placeView._id);
+      place.viewers.push(placeViewer._id);
       await place.save();
     }
 
-    placeView.save();
+    placeViewer.save();
 
     // format Type
     let formattedType = "";
@@ -426,7 +436,7 @@ exports.getPlacePosts = async (req, res) => {
 };
 
 //ADD DIRECTION CLICKED DETAILS
-exports.addPlaceDirectionClickedDetails = async (req, res) => {
+exports.addPlaceLocationClickedDetails = async (req, res) => {
   let errors = {};
   try {
     const placeId = req.params.id;
@@ -441,21 +451,21 @@ exports.addPlaceDirectionClickedDetails = async (req, res) => {
       });
     }
 
-    let directionClicked = await DirectionClick.findOne({
+    let locationClicked = await PlaceLocationViewer.findOne({
       $and: [{ place: placeId }, { user: authUser._id }],
     });
 
-    if (!directionClicked) {
-      directionClicked = DirectionClick.create({
+    if (!locationClicked) {
+      locationClicked = await PlaceLocationViewer.create({
         place: placeId,
         user: authUser._id,
       });
 
-      place.direction_clicked.push(directionClicked._id);
+      place.location_viewers.push(locationClicked._id);
       await place.save();
     }
 
-    await directionClicked.save();
+    await locationClicked.save();
 
     return res.status(200).json({
       success: true,
