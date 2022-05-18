@@ -23,6 +23,8 @@ const {
   recommendedTraveller,
   viewRecommendedTraveller,
   setExpoToken,
+  getNotificationSettings,
+  setNotificationSettings,
 } = require("../controllers/user");
 const { validateUser } = require("../middlewares/validations/userValidator");
 
@@ -88,6 +90,9 @@ router.route("/recommendedTravellers").get(isAuthenticated, viewRecommendedTrave
 router.route("/recommended/:id").get(isAuthenticated, recommendedTraveller);
 //SET EXPO TOKEN
 router.route("/setExpoToken").post(isAuthenticated, setExpoToken);
+//GET NOTIFICATION DETAILS
+router.route("/notification").get(isAuthenticated, getNotificationSettings)
+      .post(isAuthenticated, setNotificationSettings);
 
 //FOLLOW UNFOLLOW VIEW OTHERS PROFILE USER
 router

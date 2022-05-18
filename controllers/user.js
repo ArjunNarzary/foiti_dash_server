@@ -14,6 +14,7 @@ const crypto = require("crypto");
 const { sendEmail } = require("../middlewares/sentEmail");
 const { getCountry } = require("../utils/getCountry");
 const RecommendedTraveller = require("../models/RecommendedTraveller");
+const Notification = require("../models/Notification");
 var ObjectId = require('mongoose').Types.ObjectId;
 
 function createError(errors, validate) {
@@ -97,6 +98,8 @@ exports.registerUser = async (req, res) => {
 
     const token = await user.generateToken();
     user.password = "";
+    //Create notification table
+    await Notification.create({user: user._id});
 
     return res.status(201).json({
       success: true,
@@ -1230,8 +1233,40 @@ exports.setExpoToken = async (req, res) => {
     let { authUser, expoToken } = req.body;
     if(expoToken != "" || expoToken != undefined){
       const user = await User.findById(authUser._id);
+      let hasToken = false;
+      if(user.expoToken != undefined && user.expoToken != ""){
+        hasToken = true;
+      }
       user.expoToken = expoToken;
       await user.save();
+
+      // let notification = await Notification.findOne({ user: authUser._id });
+      // if (!notification) {
+      //   notification = await Notification.create({
+      //     user: authUser._id,
+      //   });
+      // }
+      // notification.new_post = true;
+      // notification.post_likes = true;
+      // notification.new_followers = true;
+      // notification.email_notitications = true;
+      // await notification.save();
+
+      //IF no token existed before
+      if(!hasToken){
+        console.log("Sending push notification setting");
+        let notification = await Notification.findOne({ user: authUser._id });
+        if (!notification) {
+          notification = await Notification.create({
+            user: authUser._id,
+          });
+        }
+        notification.new_post = true;
+        notification.post_likes = true;
+        notification.new_followers = true;
+        notification.email_notitications = true;
+        await notification.save();
+      }
     }
     return res.status(200).json({
       success: true,
@@ -1242,6 +1277,76 @@ exports.setExpoToken = async (req, res) => {
       success: false,
       messgae: errors
     });
+  }
+}
+
+//GET NOTIFICATION SETTINGS
+exports.getNotificationSettings = async (req, res) => {
+  let errors = {};
+  try{
+    let { authUser } = req.body;
+    const notification = await Notification.findOne({ user: authUser._id });
+    if(!notification){
+      errors.general = "No notification settings found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      notification,
+    });
+  }catch(error){
+    errors.general = error.message;
+    return res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+}
+
+//SET NOTIFICATION SETTINGS
+exports.setNotificationSettings = async (req, res) => {
+  let errors = {};
+  try{
+    let { authUser, notification, status } = req.body;
+    // console.log(notification, status);
+    let notificationTable = await Notification.findOne({ user: authUser._id });
+    if(!notificationTable){
+      notificationTable = await Notification.create({
+        user: authUser._id,
+      });
+    }
+
+    if(notification == "new_post"){
+      notificationTable.new_post = status;
+    }else if(notification == "post_likes"){
+      notificationTable.post_likes = status;
+    }else if(notification == "new_followers"){
+      notificationTable.new_followers = status;
+    }else if(notification == "email_notitications"){
+      notificationTable.email_notitications = status;
+    }else{
+      notificationTable.new_post = status;
+      notificationTable.post_likes = status;
+      notificationTable.new_followers = status;
+    }
+
+    await notificationTable.save();
+
+    return res.status(200).json({
+      success: true,
+      notification: notificationTable,
+    });
+
+
+  }catch(error){
+    errors.general = error.message;
+    return res.status(500).json({
+      success: false,
+      message: errors,
+    })
   }
 }
 

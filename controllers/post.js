@@ -1043,6 +1043,8 @@ exports.viewFollowersPosts = async (req, res) => {
       }
     });
 
+    console.log("Followinig", skip);
+
     return res.status(200).json({
       success: true,
       posts,
