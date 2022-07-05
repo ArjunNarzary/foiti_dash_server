@@ -87,6 +87,10 @@ const postSchema = new mongoose.Schema(
       type: String,
       enum: ["silent", "active", "deactivated", "blocked"],
     },
+    deactivated:{
+      type:Boolean,
+      default:false,
+    },
     terminated: {
       type: Boolean,
       default: false,
@@ -109,7 +113,7 @@ postSchema.methods.hasLiked = async function (id) {
 //SET VIRTUAL FOR FOLLOWING COUNT
 postSchema.virtual("display_address_for_own_country").get(function () {
   let address =
-  this.place.types[0] != "administrative_area_level_1"
+  this.place.google_types[0] != "administrative_area_level_1"
   ? this.place.address.administrative_area_level_1
   : "";
   if (
@@ -151,6 +155,9 @@ postSchema.pre("save", function (next) {
   }
   if (this.isModified("location_viewers")) {
     this.location_viewers_count = this.location_viewers.length;
+  }
+  if (this.isModified("status")) {
+    this.last_status = this.status;
   }
   next();
 });

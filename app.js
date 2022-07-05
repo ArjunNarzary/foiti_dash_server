@@ -1,34 +1,35 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 require("dotenv").config();
 
 const app = express();
 
+app.use(cors({
+    origin: process.env.CLIENT_ORIGIN_URL,
+    // origin: '*',
+    credentials: true
+}));
 //meddlewares
 app.use(express.json());
-
+app.use(cookieParser())
 app.use(helmet());
 
-// app.use(morgan("common"));
-
-app.use(cors());
 
 // app.use(expressValidator);
 //Routes Imports
-const user = require("./routes/user");
-const image = require("./routes/image");
+const admin = require("./routes/team");
+const request = require("./routes/joinRequest");
 const post = require("./routes/post");
-const place = require("./routes/place");
-const feedback = require("./routes/feedback");
+const image = require("./routes/image");
 const versionUrl = "/api/v1";
 
 //Use Routes
-app.use(`${versionUrl}/user`, user);
-app.use(`${versionUrl}/image`, image);
+app.use(`${versionUrl}/admin`, admin);
+app.use(`${versionUrl}/join`, request);
 app.use(`${versionUrl}/post`, post);
-app.use(`${versionUrl}/feedback`, feedback);
-app.use(`${versionUrl}/place`, place);
+app.use(`${versionUrl}/image`, image);
 
 module.exports = app;

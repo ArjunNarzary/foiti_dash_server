@@ -1,10 +1,21 @@
-const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const FoitiTeam = require("../models/FoitiTeam");
 
-exports.isAuthenticated = async (req, res, next) => {
+exports.isAuthenticatedAdmin = async (req, res, next) => {
+  //bearer token
   const errors = {};
   try {
-    const { token } = req.headers;
+    // const authorization  = req.headers['authorization'];
+    const { token }  = req.cookies;
+    // if (!authorization) {
+    //   errors.general = "Please login first";
+    //   console.log(errors);
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: errors,
+    //   });
+    // }
+    // const token = authorization.split(' ')[1];
 
     if (!token) {
       errors.general = "Please login first";
@@ -15,9 +26,9 @@ exports.isAuthenticated = async (req, res, next) => {
       });
     }
 
-    const decoded = await jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded._id);
-    if (!user) {
+    const decoded = await jwt.verify(token, process.env.REFRESH_JWT_SECRET);
+    const team = await FoitiTeam.findById(decoded._id);
+    if (!team) {
       errors.general = "Unauthorized user";
       return res.status(400).json({
         success: false,
@@ -25,15 +36,7 @@ exports.isAuthenticated = async (req, res, next) => {
       });
     }
 
-    if (user.terminated) {
-      errors.general = "Your account has been terminated.";
-      return res.status(403).json({
-        success: false,
-        message: errors,
-      });
-    }
-
-    req.body.authUser = user;
+    req.body.authAdmin = team;
     next();
   } catch (error) {
     errors.general = "Your are not authorized user";
@@ -42,4 +45,4 @@ exports.isAuthenticated = async (req, res, next) => {
       message: errors,
     });
   }
-};
+}

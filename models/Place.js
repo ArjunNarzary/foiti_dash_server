@@ -33,6 +33,7 @@ const placeSchema = new mongoose.Schema(
       lat: String,
       lng: String,
     },
+    google_types: [String],
     types: [String],
     cover_photo: {
       large: {
@@ -128,10 +129,10 @@ placeSchema.virtual("avgRating").get(function () {
   }
 });
 
-//SET VIRTUAL FOR FOLLOWING COUNT
+//SET VIRTUAL FOR DISPLAYING ADDRESS FOR OWN COUNTRY
 placeSchema.virtual("display_address_for_own_country").get(function () {
   let address =
-    this.types[0] != "administrative_area_level_1"
+    this.google_types[0] != "administrative_area_level_1"
       ? this.address.administrative_area_level_1
       : "";
   if (
@@ -163,15 +164,74 @@ placeSchema.virtual("display_address_for_own_country").get(function () {
   return address;
 });
 
-//Update view count
-placeSchema.pre("save", function (next) {
-  if (this.isModified("viewers")) {
-    this.viewers_count = this.viewers.length;
+//SET VIRTUAL FOR DISPLAYING ADDRESS FOR OTHER COUNTRY
+placeSchema.virtual("display_address_for_other_country").get(function () {
+  let state = "";
+  // if (this.address.administrative_area_level_1 != null) {
+  //   state = this.address.administrative_area_level_1;
+  // } else if (this.address.administrative_area_level_2 != null) {
+  //   state = this.address.administrative_area_level_2;
+  // } else if (this.address.locality != null) {
+  //   state = this.address.locality;
+  // } else if (this.address.sublocality_level_1 != null) {
+  //   state = this.address.sublocality_level_1;
+  // } else if (this.address.sublocality_level_2 != null) {
+  //   state = this.address.sublocality_level_2;
+  // } else if (this.address.neighborhood != null) {
+  //   state = this.address.neighborhood;
+  // }
+
+  if (
+    this.address.administrative_area_level_1 != null &&
+    this.google_types[0] != "administrative_area_level_1"
+  ) {
+    state = this.address.administrative_area_level_1;
+  } else if (
+    this.address.administrative_area_level_2 != null &&
+    this.google_types[0] != "administrative_area_level_2"
+  ) {
+    state = this.address.administrative_area_level_2;
+  } else if (
+    this.address.locality != null &&
+    this.google_types[0] != "locality"
+  ) {
+    state = this.address.locality;
+  } else if (
+    this.address.sublocality_level_1 != null &&
+    this.google_types[0] != "sublocality_level_1"
+  ) {
+    state = this.address.sublocality_level_1;
+  } else if (
+    this.address.sublocality_level_2 != null &&
+    this.google_types[0] != "sublocality_level_2"
+  ) {
+    state = this.address.sublocality_level_2;
+  } else if (
+    this.address.neighborhood != null &&
+    this.google_types[0] != "neighborhood"
+  ) {
+    state = this.address.neighborhood;
   }
-  if (this.isModified("location_viewers")) {
-    this.location_viewers_count = this.location_viewers.length;
+  let comma = " ";
+  if (state == "" || this.address.country == undefined){
+    comma = " ";
+  }else{
+    comma = ", ";
   }
-  next();
+
+  state = state + comma + (this.address.country != undefined ? this.address.country : "");
+  return state;
 });
+
+//Update view count
+// placeSchema.pre("save", function (next) {
+//   if (this.isModified("viewers")) {
+//     this.viewers_count = this.viewers.length;
+//   }
+//   if (this.isModified("location_viewers")) {
+//     this.location_viewers_count = this.location_viewers.length;
+//   }
+//   next();
+// });
 
 module.exports = mongoose.model("Place", placeSchema);

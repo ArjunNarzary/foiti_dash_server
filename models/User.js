@@ -24,7 +24,6 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, "Plase enter a password"],
-    select: false,
     minlength: [8, "Password should be minimum 8 characters"],
     select: false,
   },
@@ -63,14 +62,9 @@ const userSchema = new mongoose.Schema({
     country: String,
     short_country: String,
   },
-  current_location: {
-    address: {
-      name: String,
-      administrative_area_level_1: String,
-      country: String,
-      short_country: String,
-    },
-    createDate: Date,
+  currently_in: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "CurrentAddress",
   },
   bio: {
     type: String,
@@ -122,9 +116,16 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  expoToken: String,
+  expoToken: {
+    type: String,
+    select: false,
+  },
   upload_status: Boolean,
   account_status: {
+    type: String,
+    enum: ["silent", "active", "deactivated"],
+  },
+  last_account_status: {
     type: String,
     enum: ["silent", "active", "deactivated"],
   },
@@ -134,6 +135,10 @@ const userSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  tokenVersion: {
+    type: Number,
+    default: 0,
+  },
   createdAt: {
     type: Date,
     default: Date.now(),
@@ -143,6 +148,13 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now(),
   },
+});
+
+userSchema.virtual('currently_at', {
+  ref: 'currentaddresses',
+  localField: 'current_location',
+  foreignField: '_id',
+  justOne: true
 });
 
 //HASH PASSWORD
@@ -162,7 +174,7 @@ userSchema.methods.matchPassword = async function (password) {
 //GENEARATE TOKEN
 userSchema.methods.generateToken = function () {
   return jwt.sign(
-    { _id: this._id, email: this.email },
+    { _id: this._id, email: this.email, tokenVersion: this.tokenVersion },
     process.env.JWT_SECRET,
     {
       expiresIn: "90d",

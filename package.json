@@ -8,8 +8,9 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "aws-sdk": "^2.1093.0",
+    "aws-sdk": "^2.1168.0",
     "bcrypt": "^5.0.1",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",

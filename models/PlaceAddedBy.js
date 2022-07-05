@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const placeCreatedBySchema = new mongoose.Schema(
+const PlaceAddedBySchema = new mongoose.Schema(
   {
     place: {
       type: mongoose.Schema.Types.ObjectId,
@@ -16,7 +16,6 @@ const placeCreatedBySchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model(
-  "PlaceCreatedBy",
-  placeCreatedBySchema,
-  "placecreatedby"
+  "PlaceAddedBy",
+  PlaceAddedBySchema,
 );
