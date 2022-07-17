@@ -97,7 +97,6 @@ exports.loginTeam = async (req, res) => {
                 message: createError(errors, validate),
             });
         }
-        console.log(req.body);
 
         let { username, password } = req.body;
         username = username.toLowerCase().trim();

@@ -105,7 +105,8 @@ exports.requestAction = async (req, res) => {
                 username,
                 password,
                 upload_status: true,
-                account_status: "silent"
+                account_status: "silent",
+                last_account_status: "silent"
             });
 
             //SEND EMAIL
