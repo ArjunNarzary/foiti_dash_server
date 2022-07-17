@@ -1,6 +1,7 @@
 const Post = require("../models/Post");
 const User = require("../models/User");
 const Place = require("../models/Place");
+const Contribution = require("../models/Contribution");
 var ObjectId = require('mongoose').Types.ObjectId;
 
 
@@ -155,6 +156,82 @@ exports.updatePostStatus = async(req, res) => {
     }catch(error){
         console.log(error);
         errors.general =error.message;
+        res.status(500).json({
+            success: false,
+            message:errors
+        })
+    }
+}
+
+//Update Coordinates
+exports.updateCoors = async(req, res) => {
+    let errors ={};
+    try{
+        const { post_id } = req.params;
+        const { lat, lng } = req.body;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(post_id)) {
+            errors.general = "Invalid post";
+            return res.status(400).json({
+                success: false,
+                message: errors
+            });
+        }
+
+        if(lat == "" || lat == undefined){
+            errors.lat = "Please enter latitude";
+            return res.status(401).json({
+                success: false,
+                message: errors
+            });
+        }
+
+        if(lng == "" || lng == undefined){
+            errors.lng = "Please enter longitude";
+            return res.status(401).json({
+                success: false,
+                message: errors
+            });
+        }
+
+        const post = await Post.findById(post_id);
+        if(!post){
+            errors.general = "Post not found";
+            return res.status(404).json({
+                success: false,
+                message: errors
+            })
+        }
+
+        const cordStatus = post.coordinate_status
+
+        post.content[0].coordinate.lat = lat;
+        post.content[0].coordinate.lng = lng;
+        post.coordinate_status = true;
+        await post.save();
+
+        if(!cordStatus){
+            let contribution = await Contribution.findOne({ userId: post.user });
+            if (!contribution) {
+                contribution = await Contribution.create({
+                    userId: post.user,
+                });
+            }
+
+            contribution.photos_with_coordinates.push(post._id);
+            await contribution.save();
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Coordinates updated successful"
+        });
+
+
+    }catch(error){
+        console.log(error);
+        errors.general = error.message;
         res.status(500).json({
             success: false,
             message:errors
