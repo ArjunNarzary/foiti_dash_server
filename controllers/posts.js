@@ -148,10 +148,10 @@ exports.updatePostStatus = async(req, res) => {
         post.status = action;
         await post.save();
 
-        // console.log(post);
         return res.status(200).json({
             success: true,
-            message: "Post updated successful"
+            message: "Post updated successful",
+            post
         })
     }catch(error){
         console.log(error);
@@ -225,7 +225,8 @@ exports.updateCoors = async(req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: "Coordinates updated successful"
+            message: "Coordinates updated successful",
+            post
         });
 
 
