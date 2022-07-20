@@ -31,7 +31,7 @@ function generatePassword(){
 exports.viewRequest = async (req, res) => {
     let errors = {};
     try{process.env.CLIENT_ORIGIN_URL
-        const joinRequest = await JoinRequest.find({});
+        const joinRequest = await JoinRequest.find({}).sort({ createdAt: -1 });
         if(!joinRequest){
             errors.general = "No join request found";
             return res.status(404).json({

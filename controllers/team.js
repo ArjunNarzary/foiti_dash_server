@@ -228,6 +228,47 @@ exports.refreshToken = async (req, res) => {
     }
 }
 
+//UPDATE PASSWORD
+exports.updatePassword = async (req, res) => {
+    let errors = {};
+    try {
+        const validate = validationResult(req);
+        if (!validate.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: createError(errors, validate),
+            });
+        }
+
+        const { authAdmin, currentPassword, newPassword } = req.body;
+        const admin = await FoitiTeam.findById(authAdmin._id).select("+password");
+
+        const isMatch = await admin.matchPassword(currentPassword);
+        if (!isMatch) {
+            errors.currentPassword = "Current password does not match";
+            return res.status(401).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        admin.password = newPassword;
+        await admin.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Password has been updated successfully",
+        });
+    } catch (error) {
+        console.log(error.message);
+        errors.general = "Something went wrong while updating password";
+        return res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+};
+
 //TEST DASHBOARD
 exports.dashboard = async (req, res) => {
     res.status(200).json({
