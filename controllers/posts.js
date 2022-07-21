@@ -213,6 +213,7 @@ exports.updateCoors = async(req, res) => {
         await post.save();
 
         if(!cordStatus){
+            const user = await User.findById(post.user);
             let contribution = await Contribution.findOne({ userId: post.user });
             if (!contribution) {
                 contribution = await Contribution.create({
@@ -220,7 +221,12 @@ exports.updateCoors = async(req, res) => {
                 });
             }
 
-            contribution.photos_with_coordinates.push(post._id);
+            if (!contribution.photos_with_coordinates.includes(post_id)) {
+                contribution.photos_with_coordinates.push(post._id);
+                user.total_contribution = user.total_contribution + 1;
+            }
+
+            await user.save();
             await contribution.save();
         }
 
