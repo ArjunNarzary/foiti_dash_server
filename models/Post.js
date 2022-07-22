@@ -87,9 +87,9 @@ const postSchema = new mongoose.Schema(
       type: String,
       enum: ["silent", "active", "deactivated", "blocked"],
     },
-    deactivated:{
-      type:Boolean,
-      default:false,
+    deactivated: {
+      type: Boolean,
+      default: false,
     },
     terminated: {
       type: Boolean,
@@ -113,9 +113,9 @@ postSchema.methods.hasLiked = async function (id) {
 //SET VIRTUAL FOR FOLLOWING COUNT
 postSchema.virtual("display_address_for_own_country").get(function () {
   let address =
-  this.place.google_types[0] != "administrative_area_level_1"
-  ? this.place.address.administrative_area_level_1
-  : "";
+    this.place.google_types[0] != "administrative_area_level_1"
+      ? this.place.address.administrative_area_level_1
+      : "";
   if (
     this.place.address.administrative_area_level_2 != undefined &&
     this.place.address.administrative_area_level_2 != this.place.name

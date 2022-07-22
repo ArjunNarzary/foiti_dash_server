@@ -6,7 +6,7 @@ exports.isAuthenticatedAdmin = async (req, res, next) => {
   const errors = {};
   try {
     // const authorization  = req.headers['authorization'];
-    const { token }  = req.cookies;
+    const { token } = req.cookies;
     // if (!authorization) {
     //   errors.general = "Please login first";
     //   console.log(errors);
@@ -45,4 +45,4 @@ exports.isAuthenticatedAdmin = async (req, res, next) => {
       message: errors,
     });
   }
-}
+};

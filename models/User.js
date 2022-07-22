@@ -133,6 +133,24 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  blocked_users: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  reported_users: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  reported_posts: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
+    },
+  ],
   resetPasswordToken: String,
   resetPasswordExpire: Date,
   tokenVersion: {
@@ -150,11 +168,11 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-userSchema.virtual('currently_at', {
-  ref: 'currentaddresses',
-  localField: 'current_location',
-  foreignField: '_id',
-  justOne: true
+userSchema.virtual("currently_at", {
+  ref: "currentaddresses",
+  localField: "current_location",
+  foreignField: "_id",
+  justOne: true,
 });
 
 //HASH PASSWORD
