@@ -82,15 +82,14 @@ exports.recalculateContribution = async (req, res) => {
         }
 
         //FIND CONTRIBUTION
-        const contribution = await Contribution.find({user: user_id});
+        const contribution = await Contribution.findOne({userId: user_id});
         let contributionPoints = 0;
         if(contribution){
-            contributionPoints = contribution.calculateTotalContribution();
+            contributionPoints = contribution.calculateTotalContribution1();
         }
 
         user.total_contribution = contributionPoints;
-        console.log(contributionPoints);
-        // await user.save();
+        await user.save();
 
         return res.status(200).json({
             success: true,

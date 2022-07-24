@@ -24,6 +24,7 @@ const admin = require("./routes/team");
 const request = require("./routes/joinRequest");
 const post = require("./routes/post");
 const user = require("./routes/user");
+const place = require("./routes/place");
 const image = require("./routes/image");
 const versionUrl = "/api/v1";
 
@@ -32,6 +33,7 @@ app.use(`${versionUrl}/admin`, admin);
 app.use(`${versionUrl}/join`, request);
 app.use(`${versionUrl}/post`, post);
 app.use(`${versionUrl}/user`, user);
+app.use(`${versionUrl}/place`, place);
 app.use(`${versionUrl}/image`, image);
 
 module.exports = app;
