@@ -179,3 +179,65 @@ exports.updateCoors = async (req, res) => {
         });
     }
 };
+
+//CHNAGE ADDRESS
+exports.changeAddress = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+        const { address } = req.body;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const place = await Place.findById(place_id);
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //Validate address
+        let isObject = Array.isArray(Object.keys(address));
+        if(!isObject){
+            errors.address = "Please enter an address";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //Check if short country is added
+        if (address.country.trim() && !address.short_country.trim()) {
+            errors.property = "Please add a short country";
+            return res.status(401).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        place.address = address;
+        await place.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Coordinates updated successful",
+            place,
+        });
+    } catch (error) {
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
