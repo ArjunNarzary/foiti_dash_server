@@ -100,6 +100,7 @@ exports.changeName = async (req, res) => {
 
         //UPDATE PLACE
         place.name = name;
+        place.reviewed_status = true;
         //UPDATE ALL POST NAME
         await Post.updateMany({ "place": place._id }, { "$set": { "name": name } });
         await place.save();
@@ -163,6 +164,7 @@ exports.updateCoors = async (req, res) => {
 
         place.coordinates.lat = lat;
         place.coordinates.lng = lng;
+        place.reviewed_status = true;
         await place.save();
 
         return res.status(200).json({
@@ -225,11 +227,66 @@ exports.changeAddress = async (req, res) => {
         }
 
         place.address = address;
+        place.reviewed_status = true;
         await place.save();
 
         return res.status(200).json({
             success: true,
             message: "Coordinates updated successful",
+            place,
+        });
+    } catch (error) {
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
+//ADD CUSTOM TYPES
+exports.addEditCustomType = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+        const { types } = req.body;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const place = await Place.findById(place_id);
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //Validate address
+        let isArray = Array.isArray(types);
+        if (!isArray || types.length == 0) {
+            errors.type = "Please add atlest 1 custom types";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        place.types = types;
+        place.reviewed_status = true;
+        await place.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Custom types updated successful",
             place,
         });
     } catch (error) {
