@@ -38,7 +38,9 @@ exports.getPlace = async (req, res) => {
             });
         }
 
-        const place = await Place.findById(place_id);
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
         if(!place){
             errors.general = "Place not found";
             return res.status(400).json({
@@ -89,7 +91,9 @@ exports.changeName = async (req, res) => {
         }
 
         //GET PLACE
-        const place = await Place.findById(place_id);
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
         if(!place){
             errors.general = "Place not found";
             return res.status(400).json({
@@ -153,7 +157,9 @@ exports.updateCoors = async (req, res) => {
             });
         }
 
-        const place = await Place.findById(place_id);
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
         if (!place) {
             errors.general = "Place not found";
             return res.status(404).json({
@@ -198,7 +204,9 @@ exports.changeAddress = async (req, res) => {
             });
         }
 
-        const place = await Place.findById(place_id);
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
         if (!place) {
             errors.general = "Place not found";
             return res.status(404).json({
@@ -245,6 +253,84 @@ exports.changeAddress = async (req, res) => {
     }
 }
 
+//CHNAGE DISPLAY ADDRESS
+exports.changeDisplayAddress = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+        const { address } = req.body;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //Validate address
+        let isObject = Array.isArray(Object.keys(address));
+        if (!isObject) {
+            errors.address = "Please enter an address";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        if (
+            !address?.locality &&
+            !address?.administrative_area &&
+            !address?.country
+        ){
+            errors.address = "Please enter atleast 1 address";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        place.display_address = address;
+        place.display_address_available = true;
+        place.reviewed_status = true;
+        await place.save();
+
+        //UPDATE DISPLAY ADDRESS OF ALL DUPLICTE PLACES IF DUPLICATE EXIST 
+        if (place.duplicate_place_id.length > 0){
+            await Place.updateMany({ _id: {$in: place.duplicate_place_id} }, { 
+                display_address: address,
+                display_address_available: true,
+                reviewed_status: true,
+             });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Display address updated successful",
+            place,
+        });
+    } catch (error) {
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
 //ADD CUSTOM TYPES
 exports.addEditCustomType = async (req, res) => {
     let errors = {};
@@ -261,7 +347,9 @@ exports.addEditCustomType = async (req, res) => {
             });
         }
 
-        const place = await Place.findById(place_id);
+        const place = await Place.findById(place_id)
+            .populate("original_place_id")
+            .populate("duplicate_place_id", "_id name");
         if (!place) {
             errors.general = "Place not found";
             return res.status(404).json({
@@ -295,6 +383,93 @@ exports.addEditCustomType = async (req, res) => {
         res.status(500).json({
             success: false,
             message: errors,
+        });
+    }
+}
+
+
+//ADD EDIT ALIAS
+exports.addEditAlias = async (req, res) => {
+    let errors = {};
+    try{
+        const { place_id } = req.params;
+        const { alias } = req.body;
+
+        console.log(alias);
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const place = await Place.findById(place_id);
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //Validate address
+        let isArray = Array.isArray(alias);
+        if (!isArray || alias.length == 0) {
+            errors.alias = "Please add atlest 1 alias";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        place.alias = alias;
+        place.reviewed_status = true;
+        await place.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Custom types updated successful",
+            place,
+        });
+    }catch(error){
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
+
+//SEARCH PLACE
+exports.searchPlace = async (req, res) => {
+    //Search places while adding location of post
+    try {
+        const { place, count } = req.query;
+        const trimedPlace = place.trim();
+
+        const results = await Place.find({
+            $or: [{ name: { $regex: `${trimedPlace}`, $options: "i" } }, { alias: { $regex: `${trimedPlace}`, $options: "i" } }]
+        })
+            .where("duplicate")
+            .ne(true)
+            .select(
+                "_id name address cover_photo short_address local_address types google_types alias display_address display_address_available"
+            )
+            .limit(count);
+
+        return res.status(200).json({
+            success: true,
+            results,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            error: error.message,
         });
     }
 }

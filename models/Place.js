@@ -7,12 +7,15 @@ const placeSchema = new mongoose.Schema(
       require: [true, "Name of place is required"],
       index: true,
     },
+    //This array will be used to search for the place, will be manually added by team
+    alias: [String],
     google_place_id: {
       type: String,
+      require: [true, "Please select valid location"],
       index: true,
       unique: true,
     },
-    // address: {
+    // Google address formats: {
     //   route: String,
     //   natural_feature: String,
     //   neighborhood: String,
@@ -27,13 +30,27 @@ const placeSchema = new mongoose.Schema(
     //   premise: String,
     // },
     address: {},
+    //If display_address_availaible true show this address
+    display_address: {
+      locality: String,
+      administrative_area: String,
+      country: String,
+    },
+    //This is used to check if display address is available or not
+    display_address_available: {
+      type: Boolean,
+      default: false,
+    },
+    //Address to show for other country
     short_address: String,
+    //Address to show for own country
     local_address: String,
     coordinates: {
       lat: String,
       lng: String,
     },
     google_types: [String],
+    //Custom type to show in type field ["Category-> will be used in filtering", "Display in type field"]
     types: [String],
     cover_photo: {
       large: {
@@ -55,6 +72,7 @@ const placeSchema = new mongoose.Schema(
         ref: "Save",
       },
     ],
+    //This will be User objectId -> owner of the business or place
     owner_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -88,22 +106,29 @@ const placeSchema = new mongoose.Schema(
         ref: "Post",
       },
     ],
+    //This will be used to check if place is duplicate or not
     duplicate: {
       type: Boolean,
       default: false,
     },
+    //If duplicate place then this will be place ID of original place
     original_place_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Place",
     },
-    duplicate_place_id: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Place",
-    }],
+    //If this place has duplicate places then this will be array of place IDs
+    duplicate_place_id: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Place",
+      },
+    ],
+    //If this place is created by user then this will be true addrss will be taken from image coordinates
     created_place: {
       type: Boolean,
       default: false,
     },
+    //If this place is reviewed by team then this will be true
     reviewed_status: {
       type: Boolean,
       default: false,
