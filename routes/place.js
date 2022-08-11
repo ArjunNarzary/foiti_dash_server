@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const express = require("express");
-const { allPlaces, getPlace, changeName, updateCoors, changeAddress, addEditCustomType, addEditAlias, changeDisplayAddress, searchPlace } = require("../controllers/place");
+const { allPlaces, getPlace, changeName, updateCoors, changeAddress, addEditCustomType, addEditAlias, changeDisplayAddress, searchPlace, setOriginalPlace, deleteOriginalPlace } = require("../controllers/place");
 const { isAuthenticatedAdmin } = require("../middlewares/auth");
 const router = express.Router();
 
@@ -10,6 +10,8 @@ router.route("/changeAddress/:place_id").post(isAuthenticatedAdmin, changeAddres
 router.route("/changeDisplayAddress/:place_id").post(isAuthenticatedAdmin, changeDisplayAddress);
 router.route("/type/:place_id").post(isAuthenticatedAdmin, addEditCustomType);
 router.route("/alias/:place_id").post(isAuthenticatedAdmin, addEditAlias);
+router.route("/originalPlace/:place_id").post(isAuthenticatedAdmin, setOriginalPlace)
+                                        .delete(isAuthenticatedAdmin, deleteOriginalPlace);
 router.route("/search").get(isAuthenticatedAdmin, searchPlace);
 
 //ADD ROUTES ABOVE THIS LINE

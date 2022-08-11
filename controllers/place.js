@@ -395,8 +395,6 @@ exports.addEditAlias = async (req, res) => {
         const { place_id } = req.params;
         const { alias } = req.body;
 
-        console.log(alias);
-
         //Validate Object ID
         if (!ObjectId.isValid(place_id)) {
             errors.general = "Invalid place";
@@ -406,7 +404,9 @@ exports.addEditAlias = async (req, res) => {
             });
         }
 
-        const place = await Place.findById(place_id);
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");;
         if (!place) {
             errors.general = "Place not found";
             return res.status(404).json({
@@ -470,6 +470,188 @@ exports.searchPlace = async (req, res) => {
         return res.status(500).json({
             success: false,
             error: error.message,
+        });
+    }
+}
+
+exports.setOriginalPlace = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+        const { original_place_id } = req.body;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+        if (!ObjectId.isValid(original_place_id)) {
+            errors.general = "Invalid original place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //SAME PLACE IDS
+        if(place_id == original_place_id){
+            errors.general = "Place and original place cannot be same";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const currentPlace = await Place.findById(place_id);
+        if (!currentPlace) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //CHECK IF IS ORIGINAL PLACE
+        if (currentPlace.duplicate_place_id.length > 0){
+            errors.general = "Currunt place is original place of other places";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+        const originalPlace = await Place.findById(original_place_id);
+        if (!originalPlace) {
+            errors.general = "Original place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //IF ALREADY HAS ORIGIN PLACE
+        if (currentPlace.original_place_id){
+            const oldOriginalPlace = await Place.findById(currentPlace.original_place_id);
+            if (oldOriginalPlace && oldOriginalPlace.duplicate_place_id.includes(currentPlace._id)) {
+                const index = oldOriginalPlace.duplicate_place_id.indexOf(currentPlace._id);
+                oldOriginalPlace.duplicate_place_id.splice(index, 1);
+            }
+            await oldOriginalPlace.save();
+        }
+
+        if(originalPlace.display_address_available){
+            currentPlace.display_address = originalPlace.display_address;
+            currentPlace.display_address_available = true;
+        }
+
+        currentPlace.original_place_id = originalPlace._id;
+        currentPlace.duplicate = true;
+        currentPlace.reviewed_status = true;
+        
+        if (!originalPlace.duplicate_place_id.includes(currentPlace._id)) {
+            originalPlace.duplicate_place_id.push(currentPlace._id);
+        }
+        originalPlace.reviewed_status = true;
+        await originalPlace.save();
+        await currentPlace.save();
+
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
+
+        return res.status(200).json({
+            success: true,
+            message: "Original place set successful",
+            place,
+        });
+    } catch (error) {
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
+exports.deleteOriginalPlace = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+        const { duplicate_id } = req.body;
+
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+        if (!ObjectId.isValid(duplicate_id)) {
+            errors.general = "Invalid original place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        //SAME PLACE IDS
+        if (place_id == duplicate_id){
+            errors.general = "Original place and duplicate place cannot be same";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+        const originalPlace = await Place.findById(place_id);
+        if (!originalPlace) {
+            errors.general = "Original place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+        const duplicatePlace = await Place.findById(duplicate_id)
+        if (!duplicatePlace) {
+            errors.general = "Duplicate place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+        if (originalPlace.duplicate_place_id.includes(duplicatePlace._id)) {
+            const index = originalPlace.duplicate_place_id.indexOf(duplicatePlace._id);
+            originalPlace.duplicate_place_id.splice(index, 1);
+
+            duplicatePlace.duplicate = false;
+            duplicatePlace.original_place_id = undefined;
+            duplicatePlace.display_address={};
+            duplicatePlace.display_address_available = false;
+            await duplicatePlace.save();
+            await originalPlace.save();
+        }
+
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
+
+        return res.status(200).json({
+            success: true,
+            message: "Duplicate place removed successful",
+            place,
+        });
+
+
+    } catch (error) {
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
         });
     }
 }
