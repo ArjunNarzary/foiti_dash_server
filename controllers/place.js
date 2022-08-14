@@ -292,7 +292,8 @@ exports.changeDisplayAddress = async (req, res) => {
 
         if (
             !address?.locality &&
-            !address?.administrative_area &&
+            !address?.admin_area_2 &&
+            !address?.admin_area_1 &&
             !address?.country
         ){
             errors.address = "Please enter atleast 1 address";
@@ -646,6 +647,108 @@ exports.deleteOriginalPlace = async (req, res) => {
         });
 
 
+    } catch (error) {
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
+
+//TOGGLE SHOW DESTINATION
+exports.toggleShowDestination = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");;
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        if(place.types.length < 2){
+            errors.general = "Place must have atleast 2 types";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        if(place.types[1] != "state"){
+            errors.general = "Place must be state";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+        place.show_destinations = !place.show_destinations;
+        await place.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Show destination set successful",
+            place,
+        });
+    } catch (error) {
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
+//TOGGLE SHOW DESTINATION
+exports.toggleDestination = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+        const place = await Place.findById(place_id)
+            .populate("original_place_id")
+            .populate("duplicate_place_id", "_id name");;
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        place.destination = !place.destination;
+        await place.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Show destination set successful",
+            place,
+        });
     } catch (error) {
         console.log(error);
         errors.general = error.message;

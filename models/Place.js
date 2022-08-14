@@ -33,7 +33,8 @@ const placeSchema = new mongoose.Schema(
     //If display_address_availaible true show this address
     display_address: {
       locality: String,
-      administrative_area: String,
+      admin_area_2: String,
+      admin_area_1: String,
       country: String,
     },
     //This is used to check if display address is available or not
@@ -130,6 +131,14 @@ const placeSchema = new mongoose.Schema(
     },
     //If this place is reviewed by team then this will be true
     reviewed_status: {
+      type: Boolean,
+      default: false,
+    },
+    destination: {
+      type: Boolean,
+      default: false,
+    },
+    show_destinations: {
       type: Boolean,
       default: false,
     },
