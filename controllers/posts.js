@@ -434,6 +434,26 @@ exports.updatePostLocation = async (req, res) => {
       place.posts.push(post._id);
     }
 
+    //IF IMAGE HAS COORDINATES
+    const currentUser = await User.findById(post.user);
+    const currentUserContribution = await Contribution.findOne({
+      userId: post.user,
+    });
+
+    //Add to placeCreatedTableBy
+    if (newPlaceCreated) {
+      await PlaceAddedBy.create({
+        place: place._id,
+        user: post.user,
+      });
+      //ADD to contribution table
+      currentUserContribution.added_places.push(place._id)
+    }
+    await currentUserContribution.save();
+    currentUser.total_contribution =
+      currentUserContribution.calculateTotalContribution();
+    await currentUser.save();
+
     await post.save();
     await place.save();
 

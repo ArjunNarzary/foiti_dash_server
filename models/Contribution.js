@@ -62,7 +62,7 @@ const contributionSchema = new Schema(
 );
 
 //CALCULATE TOTAL CONTRIBUTION POINTS
-contributionSchema.methods.calculateTotalContribution1 = function () {
+contributionSchema.methods.calculateTotalContribution = function () {
   let total = 0;
   total = total + this.photos.length;
   total = total + this.photos_with_coordinates.length;

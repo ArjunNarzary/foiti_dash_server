@@ -1,6 +1,14 @@
 const Place = require("../models/Place");
 const Post = require("../models/Post");
 var ObjectId = require("mongoose").Types.ObjectId;
+const sharp = require("sharp");
+const fs = require("fs");
+const util = require("util");
+const unlinkFile = util.promisify(fs.unlink);
+const { uploadFile, deleteFile } = require("../utils/s3");
+const Contribution = require("../models/Contribution");
+const PlaceAddedBy = require("../models/PlaceAddedBy");
+const User = require("../models/User");
 
 
 exports.allPlaces = async (req, res) => {
@@ -332,6 +340,68 @@ exports.changeDisplayAddress = async (req, res) => {
     }
 }
 
+//MERGE DISPLAY ADDRESS WITH ADDRESS
+exports.mergeDisplayAddress = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
+
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const address = {
+            admin_area_2: place.address.administrative_area_level_2,
+            admin_area_1: place.address.administrative_area_level_1,
+            country: place.address.country,
+        }
+
+        place.display_address = address;
+        place.display_address_available = true;
+        place.reviewed_status = true;
+        await place.save();
+
+        //UPDATE DISPLAY ADDRESS OF ALL DUPLICTE PLACES IF DUPLICATE EXIST 
+        if (place.duplicate_place_id.length > 0){
+            await Place.updateMany({ _id: {$in: place.duplicate_place_id} }, { 
+                display_address: address,
+                display_address_available: true,
+                reviewed_status: true,
+             });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Display address updated successful",
+            place,
+        });
+    } catch (error) {
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
 //ADD CUSTOM TYPES
 exports.addEditCustomType = async (req, res) => {
     let errors = {};
@@ -436,6 +506,117 @@ exports.addEditAlias = async (req, res) => {
             place,
         });
     }catch(error){
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
+
+//UPDATE SEARCH RANK
+exports.setSearchRank = async (req, res) => {
+    let errors = {};
+    try{
+        const { place_id } = req.params;
+        const { rank } = req.body;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        if(rank.trim() == "" || !Number.isInteger(Number(rank))){
+            errors.rank = "Please enter valid rank without decimals";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const place = await Place.findById(place_id)
+                    .populate("original_place_id")
+                    .populate("duplicate_place_id", "_id name");
+
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        place.search_rank = Number(rank);
+        place.reviewed_status = true;
+        await place.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Search rank updated successful",
+            place,
+        });
+    }catch(error){
+        console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
+//UPDATE EDITOR RATING
+exports.setEditorRating = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+        const { rating } = req.body;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        if (rating.trim() == "" || Number.isNaN(Number(rating))) {
+            errors.rank = "Please enter valid rating";
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        const place = await Place.findById(place_id)
+            .populate("original_place_id")
+            .populate("duplicate_place_id", "_id name");
+
+        if (!place) {
+            errors.general = "Place not found";
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        place.editor_rating = Number(rating);
+        place.reviewed_status = true;
+        await place.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Search rank updated successful",
+            place,
+        });
+    } catch (error) {
         console.log(error);
         errors.general = error.message;
         res.status(500).json({
@@ -557,6 +738,30 @@ exports.setOriginalPlace = async (req, res) => {
         originalPlace.reviewed_status = true;
         await originalPlace.save();
         await currentPlace.save();
+
+        //REMOVE CONTRIBUTIONS FOR CURRENT PLACE
+        const placeCreated = await PlaceAddedBy.findOne({
+            place: currentPlace._id,
+        });
+
+        //REMOVE CONTRIBUITION FROM THE USER WHO CREATED THE PLACE
+        if(placeCreated){
+            const placeCreator = await User.findById(placeCreated.user);
+            //REMOVE PLACE FROM CONTRIBUTION TABLE
+            const contribution = await Contribution.findOne({
+                userId: placeCreator._id,
+            });
+            if (contribution.added_places.includes(currentPlace._id)) {
+                const index = contribution.added_places.indexOf(currentPlace._id);
+                contribution.added_places.splice(index, 1);
+                await contribution.save();
+            }
+            if (placeCreator) {
+                placeCreator.total_contribution =
+                    contribution.calculateTotalContribution();
+                await placeCreator.save();
+            }
+        }
 
         const place = await Place.findById(place_id)
                     .populate("original_place_id")
@@ -751,6 +956,111 @@ exports.toggleDestination = async (req, res) => {
         });
     } catch (error) {
         console.log(error);
+        errors.general = error.message;
+        res.status(500).json({
+            success: false,
+            message: errors,
+        });
+    }
+}
+
+//CHNAGE COVER PHOTO
+exports.changeCover = async (req, res) => {
+    let errors = {};
+    try {
+        const { place_id } = req.params;
+
+        //Validate Object ID
+        if (!ObjectId.isValid(place_id)) {
+            errors.general = "Invalid place";
+            await unlinkFile(req.file.path);
+            return res.status(400).json({
+                success: false,
+                message: errors,
+            });
+        }
+        const place = await Place.findById(place_id)
+            .populate("original_place_id")
+            .populate("duplicate_place_id", "_id name")
+            .populate("posts");
+        if (!place) {
+            errors.general = "Place not found";
+            await unlinkFile(req.file.path);
+            return res.status(404).json({
+                success: false,
+                message: errors,
+            });
+        }
+
+        let coverPhotoOfPost = false;
+        if (place.cover_photo.large != undefined && place.posts.length > 0){
+            place.posts.forEach(post => {
+                if(place.cover_photo.large.private_id == post.content[0].image.large.private_id){
+                    coverPhotoOfPost = true;
+                    return false;
+                }
+            } );
+        }
+
+        //RESIZE COVER PHOTO
+        const sharpLarge = await sharp(req.file.path)
+            .resize(1080)
+            .withMetadata()
+            .toBuffer();
+        const resultLarge = await uploadFile(req.file, sharpLarge);
+
+        //Resize Image for thumbnail
+        const sharpThumb = await sharp(req.file.path)
+            .resize(500)
+            .withMetadata()
+            .toBuffer();
+        const resultThumb = await uploadFile(req.file, sharpThumb);
+
+        //Resize Image for small
+        const sharpSmall = await sharp(req.file.path)
+            .resize(150, 150, { fit: "cover" })
+            .withMetadata()
+            .toBuffer();
+        const resultSmall = await uploadFile(req.file, sharpSmall);
+
+        //REMOVE image from S3 if cover photo is not same with any post photo
+        if (!coverPhotoOfPost && place.cover_photo.large != undefined) {
+            await deleteFile(place.cover_photo.large.private_id);
+            await deleteFile(place.cover_photo.thumbnail.private_id);
+            await deleteFile(place.cover_photo.small.private_id);
+        }
+
+        //SAVE NEW COVER PHOTO
+        const newCoverPhoto = {
+            thumbnail: {
+                public_url: resultThumb.Location,
+                private_id: resultThumb.Key,
+            },
+            small: {
+                public_url: resultSmall.Location,
+                private_id: resultSmall.Key,
+            },
+            large: {
+                public_url: resultLarge.Location,
+                private_id: resultLarge.Key,
+            },
+        }
+
+        place.cover_photo = newCoverPhoto;
+        place.reviewed_status = true;
+        await place.save();
+
+        //REMOVE FILE FROM UPLOAD FOLDER
+        await unlinkFile(req.file.path);
+
+        return res.status(200).json({
+            success: true,
+            message: "Cover photo set successful",
+            place,
+        });
+    } catch (error) {
+        console.log(error);
+        await unlinkFile(req.file.path);
         errors.general = error.message;
         res.status(500).json({
             success: false,
