@@ -374,8 +374,11 @@ exports.updatePostLocation = async (req, res) => {
         if (place.reviewed_status === false) {
           await place.deleteOne();
         }else{
-          place.cover_photo = {};
-          await place.save();
+          if (place.cover_photo.large.private_id ==
+            post.content[0].image.large.private_id){
+              place.cover_photo = {};
+              await place.save();
+            }
         }
       }else{
         //REPLACE PLACE COVER PHOTO IF DELETED POST IS COVER PHOTO`

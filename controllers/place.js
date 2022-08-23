@@ -234,8 +234,8 @@ exports.changeAddress = async (req, res) => {
         }
 
         //Check if short country is added
-        if (address.country.trim() && !address.short_country.trim()) {
-            errors.property = "Please add a short country";
+        if (!address.country.trim() || !address.short_country.trim()) {
+            errors.property = "Please add country and short country";
             return res.status(401).json({
                 success: false,
                 message: errors,
@@ -340,7 +340,7 @@ exports.changeDisplayAddress = async (req, res) => {
     }
 }
 
-//MERGE DISPLAY ADDRESS WITH ADDRESS
+//COPY GOOGLE ADDRESS TO DISPLAY ADDRESS
 exports.mergeDisplayAddress = async (req, res) => {
     let errors = {};
     try {
@@ -368,9 +368,10 @@ exports.mergeDisplayAddress = async (req, res) => {
         }
 
         const address = {
-            admin_area_2: place.address.administrative_area_level_2,
-            admin_area_1: place.address.administrative_area_level_1,
-            country: place.address.country,
+            sublocality: place.address.sublocality_level_1 || undefined,
+            admin_area_2: place.address.administrative_area_level_2 || undefined,
+            admin_area_1: place.address.administrative_area_level_1 || undefined,
+            country: place.address.country || undefined,
         }
 
         place.display_address = address;
@@ -1021,7 +1022,7 @@ exports.changeCover = async (req, res) => {
             .resize(150, 150, { fit: "cover" })
             .withMetadata()
             .toBuffer();
-        const resultSmall = await uploadFile(req.file, sharpSmall);
+        const resultSmall = await uploadFile(req.file, sharpSmall); 
 
         //REMOVE image from S3 if cover photo is not same with any post photo
         if (!coverPhotoOfPost && place.cover_photo.large != undefined) {
