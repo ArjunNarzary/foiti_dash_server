@@ -367,11 +367,16 @@ exports.mergeDisplayAddress = async (req, res) => {
             });
         }
 
-        const address = {
-            sublocality: place.address.sublocality_level_1 || undefined,
-            admin_area_2: place.address.administrative_area_level_2 || undefined,
-            admin_area_1: place.address.administrative_area_level_1 || undefined,
-            country: place.address.country || undefined,
+        let address = {};
+
+        if (place.address.administrative_area_level_2){
+            address.admin_area_2 = place.address.administrative_area_level_2
+        }
+        if (place.address.administrative_area_level_1){
+            address.admin_area_1 = place.address.administrative_area_level_1
+        }
+        if (place.address.country){
+            address.country = place.address.country
         }
 
         place.display_address = address;
