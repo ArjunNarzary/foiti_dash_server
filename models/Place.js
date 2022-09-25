@@ -96,14 +96,14 @@ const placeSchema = new mongoose.Schema(
     viewers: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "PlaceView",
+        ref: "PlaceViewer",
       },
     ],
     viewers_count: Number,
     location_viewers: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "DirectionClick",
+        ref: "PlaceLocationViewer",
       },
     ],
     location_viewers_count: Number,

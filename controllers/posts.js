@@ -478,3 +478,41 @@ exports.updatePostLocation = async (req, res) => {
     });
   }
 };
+
+//ALL POSTS WITH COORDINATES
+exports.allPostWithCoordinates = async (req, res) => {
+  let errors = {};
+  try{
+    let { limit = 50, skip } = req.body;
+
+    const allPosts = await Post.find({})
+      .select('_id name content caption coordinate_status status')
+      .where('coordinate_status').equals(true)
+      .where('status').equals('active')
+      .populate('user', 'name')
+      .populate('place', 'name display_address address')
+      .limit(limit)
+      .skip(skip)
+      .sort({ createdAt: -1 });
+
+    if(allPosts.length > 0){
+      skip = skip + allPosts.length;
+    }
+
+    res.status(200).json({
+      success: true,
+      allPosts,
+      skip,
+      limit
+    })
+
+
+  }catch(error){
+    console.log(error);
+    errors.general = error.message;
+    res.status(500).json({
+      succes: false,
+      message: errors,
+    })
+  }
+}
