@@ -77,7 +77,7 @@ exports.changeName = async (req, res) => {
     let errors = {};
     try{
         const { place_id } = req.params;
-        const { name } = req.body;
+        const { name, type } = req.body;
         // return;
 
         //Validate place_id
@@ -111,10 +111,14 @@ exports.changeName = async (req, res) => {
         }
 
         //UPDATE PLACE
-        place.name = name;
+        if(type === 'display_name'){
+            place.display_name = name;
+        }else{
+            place.name = name;
+            await Post.updateMany({ "place": place._id }, { "$set": { "name": name } });
+        }
         place.reviewed_status = true;
         //UPDATE ALL POST NAME
-        await Post.updateMany({ "place": place._id }, { "$set": { "name": name } });
         await place.save();
 
         res.status(200).json({
@@ -369,6 +373,9 @@ exports.mergeDisplayAddress = async (req, res) => {
 
         let address = {};
 
+        if (place.address.locality){
+            address.locality = place.address.locality
+        }
         if (place.address.administrative_area_level_2){
             address.admin_area_2 = place.address.administrative_area_level_2
         }
@@ -377,6 +384,9 @@ exports.mergeDisplayAddress = async (req, res) => {
         }
         if (place.address.country){
             address.country = place.address.country
+        }
+        if (place.address.short_country){
+            address.short_country = place.address.short_country
         }
 
         place.display_address = address;
@@ -734,6 +744,13 @@ exports.setOriginalPlace = async (req, res) => {
             currentPlace.display_address_available = true;
         }
 
+        //COPY NAME TO DISPLAY_NAME
+        if (originalPlace.display_name){
+            currentPlace.display_name = originalPlace.display_name;
+        }else{
+            currentPlace.display_name = originalPlace.name;
+        }
+
         currentPlace.original_place_id = originalPlace._id;
         currentPlace.duplicate = true;
         currentPlace.reviewed_status = true;
@@ -1074,3 +1091,31 @@ exports.changeCover = async (req, res) => {
         });
     }
 }
+
+
+
+
+
+//=======TEMPORARY LINK TO COPY ORIGINAL NAME TO DISPLAY NAME
+exports.setOriginalDisplayName = async(req, res) => {
+    try{
+        const places = await Place.find({duplicate: true})
+              .populate('original_place_id');
+
+        for(let doc of places){
+            Place.updateOne({ _id: doc._id }, { $set: { "display_name": doc.original_place_id.name } });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Display name added successful"
+        });
+    }catch(error){
+        console.log(error);
+        res.status.json({
+            success: false,
+            messgae: error.messgae
+        })
+    }
+}
+//=======TEMPORARY LINK TO COPY ORIGINAL NAME TO DISPLAY NAME
