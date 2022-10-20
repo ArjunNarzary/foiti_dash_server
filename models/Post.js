@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+const pointSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['Point'],
+    default: "Point",
+  },
+  coordinates: {
+    type: [Number], // Array of arrays of arrays of numbers
+  }
+});
+
 const postSchema = new mongoose.Schema(
   {
     name: String,
@@ -8,6 +19,10 @@ const postSchema = new mongoose.Schema(
       ref: "User",
     },
     place: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Place",
+    },
+    original_place: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Place",
     },
@@ -27,6 +42,15 @@ const postSchema = new mongoose.Schema(
             private_id: String,
           },
         },
+        Make: String,
+        Model: String,
+        ExifVersion: String,
+        ISOSpeedRatings: String,
+        createdDate: {
+          year: Number,
+          month: Number,
+          day: Number
+        },
         coordinate: {
           lat: String,
           lng: String,
@@ -36,6 +60,11 @@ const postSchema = new mongoose.Schema(
           enum: ["video", "image"],
           default: "image",
         },
+        location: {
+          type: pointSchema,
+          index: '2dsphere', // Create a special 2dsphere index
+          sparse: true
+        }
       },
     ],
     caption: {

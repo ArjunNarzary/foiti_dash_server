@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+const pointSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['Point'],
+    default: "Point",
+  },
+  coordinates: {
+    type: [Number], // Array of arrays of arrays of numbers
+  }
+});
+
 const placeSchema = new mongoose.Schema(
   {
     name: {
@@ -55,6 +66,11 @@ const placeSchema = new mongoose.Schema(
       lat: String,
       lng: String,
     },
+    location: {
+      type: pointSchema,
+      index: '2dsphere', // Create a special 2dsphere index
+      sparse: true
+    },
     google_types: [String],
     //Custom type to show in type field ["Category-> will be used in filtering", "Display in type field"]
     types: [String],
@@ -82,6 +98,7 @@ const placeSchema = new mongoose.Schema(
         private_id: String,
       },
     },
+    open_hours: [],
     saved: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -121,6 +138,12 @@ const placeSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "Post",
       },
+    ],
+    users: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      }
     ],
     //This will be used to check if place is duplicate or not
     duplicate: {

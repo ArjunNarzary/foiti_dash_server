@@ -762,6 +762,9 @@ exports.setOriginalPlace = async (req, res) => {
         await originalPlace.save();
         await currentPlace.save();
 
+        //ADD ORIGINAL PLACE ON ALL POST OF CURRENT PLACE
+        await Post.updateMany({ place: currentPlace._id }, { original_place: originalPlace._id });
+
         //REMOVE CONTRIBUTIONS FOR CURRENT PLACE
         const placeCreated = await PlaceAddedBy.findOne({
             place: currentPlace._id,
@@ -860,8 +863,13 @@ exports.deleteOriginalPlace = async (req, res) => {
             duplicatePlace.original_place_id = undefined;
             duplicatePlace.display_address={};
             duplicatePlace.display_address_available = false;
+
+            console.log(duplicatePlace._id, originalPlace._id )
+
             await duplicatePlace.save();
             await originalPlace.save();
+
+            const newP = await Post.updateMany({ $and: [{ place: duplicatePlace._id }, { original_place: originalPlace._id }] }, { $unset: { "original_place": 1 } });
         }
 
         const place = await Place.findById(place_id)

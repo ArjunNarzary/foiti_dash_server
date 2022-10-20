@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
     unique: [true, "Email already exist"],
     lowercase: true,
   },
-  email_varified: {
+  email_verified: {
     type: Boolean,
     default: false,
   },
@@ -65,6 +65,10 @@ const userSchema = new mongoose.Schema({
       lat: String,
       lng: String,
     }
+  },
+  place: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Place",
   },
   currently_in: {
     type: mongoose.Schema.Types.ObjectId,

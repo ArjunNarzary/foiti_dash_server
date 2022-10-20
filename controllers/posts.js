@@ -100,7 +100,9 @@ exports.usersPost = async (req, res) => {
 
     const posts = await Post.find({ user: user_id })
       .populate("place", "name address google_types")
-      .populate("user", "name");
+      .populate("user", "name").sort({ createdAt: -1 });
+
+
     return res.status(200).json({
       success: true,
       posts,
@@ -493,7 +495,7 @@ exports.allPostWithCoordinates = async (req, res) => {
       .populate('place', 'name display_address address')
       .limit(limit)
       .skip(skip)
-      .sort({ createdAt: -1 });
+      .sort({ updatedAt: -1 });
 
     if(allPosts.length > 0){
       skip = skip + allPosts.length;
