@@ -294,10 +294,6 @@ exports.updatePostLocation = async (req, res) => {
     const { post_id } = req.params;
     const { details } = req.body;
 
-    // console.log(post_id);
-    // console.log(details);
-    // return;
-
     //Validate Object ID
     if (!ObjectId.isValid(post_id)) {
       errors.general = "Invalid post";
@@ -373,7 +369,7 @@ exports.updatePostLocation = async (req, res) => {
 
           await placeCreated.deleteOne();
         }
-        if (place.reviewed_status === false) {
+        if (place.reviewed_status === false && place.users.length === 0) {
           await place.deleteOne();
         }else{
           if (place.cover_photo.large.private_id ==
@@ -480,6 +476,162 @@ exports.updatePostLocation = async (req, res) => {
     });
   }
 };
+
+//Modify post place
+exports.changePostPlace = async (req, res) => {
+  let errors = {};
+  try{
+    const { post_id, place_id } = req.body;
+
+    //Validate Object ID
+    if (!ObjectId.isValid(post_id) || !ObjectId.isValid(place_id)) {
+      errors.general = "Invalid id";
+      return res.status(400).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    const post = await Post.findById(post_id);
+    if (!post) {
+      errors.general = "Post not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    const newPlace = await Place.findById(place_id);
+    if (!newPlace) {
+      errors.general = "Place not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    if(post.place.toString() === newPlace._id.toString()){
+      errors.general = "This place is already selected";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    //GET CURRENT PLACE AND REMOVE POST FROM THERE
+    let place = await Place.findById(post.place);
+
+    if (!place) {
+      errors.general = "Please try again after some time.";
+      res.status(500).json({
+        success: false,
+        error: errors,
+      });
+    }
+
+    //If new place is different remove post
+    if (place.posts.includes(post._id)) {
+      const index = place.posts.indexOf(post._id);
+      place.posts.splice(index, 1);
+      await place.save();
+    }
+
+    //DELETE PLACE IF NO POST AVAILABLE
+    if (place.posts.length === 0) {
+      const placeCreated = await PlaceAddedBy.findOne({
+        place: place._id,
+      });
+
+      //REMOVE CONTRIBUITION FROM THE USER WHO CREATED THE PLACE
+      if (placeCreated) {
+        const placeCreator = await User.findById(placeCreated.user);
+        //REMOVE PLACE FROM CONTRIBUTION TABLE
+        const contribution = await Contribution.findOne({
+          userId: placeCreator._id,
+        });
+        if (contribution.added_places.includes(place._id)) {
+          const index = contribution.added_places.indexOf(place._id);
+          contribution.added_places.splice(index, 1);
+          await contribution.save();
+        }
+        if (placeCreator) {
+          placeCreator.total_contribution =
+            contribution.calculateTotalContribution();
+          await placeCreator.save();
+        }
+
+        await placeCreated.deleteOne();
+      }
+      if (place.reviewed_status === false && place.users.length === 0) {
+        await place.deleteOne();
+      } else {
+        if (place.cover_photo.large.private_id ==
+          post.content[0].image.large.private_id) {
+          place.cover_photo = {};
+          await place.save();
+        }
+      }
+    } else {
+      //REPLACE PLACE COVER PHOTO IF DELETED POST IS COVER PHOTO`
+      if (
+        place.cover_photo.large.private_id ==
+        post.content[0].image.large.private_id
+      ) {
+        //GET MOST LIKE ARRAY COUNT
+        const HighestLikedPost = await Post.aggregate([
+          {
+            $match: Post.where("_id")
+              .ne(post._id)
+              .where("place")
+              .equals(place._id)
+              .where("coordinate_status")
+              .equals(true)
+              .cast(Post),
+          },
+          {
+            $addFields: {
+              TotalLike: { $size: "$like" },
+            },
+          },
+          { $sort: { TotalLike: -1 } },
+        ]).limit(1);
+        if (HighestLikedPost.length > 0) {
+          place.cover_photo = HighestLikedPost[0].content[0].image;
+        } else {
+          place.cover_photo = {};
+        }
+      }
+      await place.save();
+    }
+
+    post.name = newPlace.name;
+    post.place = newPlace._id;
+    newPlace.posts.push(post._id);
+
+    await post.save();
+    await newPlace.save();
+
+    const newPost = await Post.findById(post._id)
+      .populate("place", "name address google_types types")
+      .populate("user", "name");
+
+    return res.status(200).json({
+      success: true,
+      message: "Post updated successful",
+      newPost,
+    });
+
+
+
+  } catch(error){
+    console.log(error);
+    errors.general = error.message;
+    res.status(500).json({
+      success: false,
+      message: errors
+    })
+  }
+}
 
 //ALL POSTS WITH COORDINATES
 exports.allPostWithCoordinates = async (req, res) => {

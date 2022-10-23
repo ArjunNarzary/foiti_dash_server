@@ -655,6 +655,8 @@ exports.searchPlace = async (req, res) => {
         })
             .where("duplicate")
             .ne(true)
+            .where("display_address_available")
+            .equals(true)
             .select(
                 "_id name address cover_photo short_address local_address types google_types alias display_address display_address_available"
             )
