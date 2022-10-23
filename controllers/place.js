@@ -182,6 +182,9 @@ exports.updateCoors = async (req, res) => {
 
         place.coordinates.lat = lat;
         place.coordinates.lng = lng;
+        place.location = {
+            coordinates: [parseFloat(lng), parseFloat(lat)]
+        },
         place.reviewed_status = true;
         await place.save();
 

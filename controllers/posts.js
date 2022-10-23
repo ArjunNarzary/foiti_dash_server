@@ -213,6 +213,9 @@ exports.updateCoors = async (req, res) => {
 
     post.content[0].coordinate.lat = lat;
     post.content[0].coordinate.lng = lng;
+    post.content[0].location =  {
+      coordinates: [parseFloat(lng), parseFloat(lat)]
+    },
     post.coordinate_status = true;
     await post.save();
 
