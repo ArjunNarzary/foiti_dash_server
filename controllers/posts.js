@@ -607,7 +607,12 @@ exports.changePostPlace = async (req, res) => {
     post.name = newPlace.name;
     post.place = newPlace._id;
     newPlace.posts.push(post._id);
-
+    
+    //Add post image to place cover if not exist
+    if (post.coordinate_status && !newPlace.cover_photo.large.private_id){
+      newPlace.cover_photo = post.content[0].image;
+    }
+    
     await post.save();
     await newPlace.save();
 
