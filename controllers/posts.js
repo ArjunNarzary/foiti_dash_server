@@ -655,7 +655,7 @@ exports.allPostWithCoordinates = async (req, res) => {
       .populate('place', 'name display_address address')
       .limit(limit)
       .skip(skip)
-      .sort({ updatedAt: -1 });
+      .sort({ createdAt: -1 });
 
     if(allPosts.length > 0){
       skip = skip + allPosts.length;
