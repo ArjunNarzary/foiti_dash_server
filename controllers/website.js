@@ -75,9 +75,11 @@ exports.getPlace = async (req, res) => {
         }
 
         const place = await Place.findById(place_id)
-            .select("_id name display_name cover_photo types display_address_available display_address address short_address")
+            .select("_id name display_name cover_photo types display_address_available display_address address short_address local_address")
 
         place.short_address = place.display_address_for_share;
+        //added formated type below as local_adderss
+        place.local_address = place.types.length > 1 ? place.types[1].split("_").map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(" ") : "";
 
         if (!place) {
             errors.general = "Place not found";
