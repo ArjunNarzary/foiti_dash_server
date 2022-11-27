@@ -188,122 +188,60 @@ const placeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// //CALCULATE AVG RATING
-// placeSchema.virtual("avgRating").get(function () {
-//   if (this.review_id.length > 0) {
-//     let sum = 0;
-//     for (let i = 0; i < this.review_id.length; i++) {
-//       sum += this.review_id[i].rating;
-//     }
-//     return sum / this.review_id.length;
-//   } else {
-//     return 0;
-//   }
-// });
+//SET VIRTUAL FOR DISPLAYING ADDRESS FOR OWN COUNTRY
+placeSchema.virtual("display_address_for_share").get(function () {
+  let addressArr = [];
 
-// //SET VIRTUAL FOR DISPLAYING ADDRESS FOR OWN COUNTRY
-// placeSchema.virtual("display_address_for_own_country").get(function () {
-//   let addressArr = [];
+  if (this.display_address_available) {
+    if (this.display_address.admin_area_1) {
+      addressArr.push(this.display_address.admin_area_1);
+    }
 
-//   if (
-//     this.address.administrative_area_level_1 != this.name &&
-//     this.address.administrative_area_level_1 != undefined
-//   ) {
-//     addressArr.push(this.address.administrative_area_level_1);
-//   }
-//   if (
-//     this.address.administrative_area_level_2 != undefined &&
-//     this.address.administrative_area_level_2 != this.name
-//   ) {
-//     addressArr.push(this.address.administrative_area_level_2);
-//   } else if (
-//     this.address.natural_feature != undefined &&
-//     this.address.natural_feature != this.name
-//   ) {
-//     addressArr.push(this.address.natural_feature);
-//   } else if (
-//     this.address.sublocality_level_1 != undefined &&
-//     this.address.sublocality_level_1 != this.name
-//   ) {
-//     addressArr.push(this.address.sublocality_level_1);
-//   } else if (
-//     this.address.sublocality_level_2 != undefined &&
-//     this.address.sublocality_level_2 != this.name
-//   ) {
-//     addressArr.push(this.address.sublocality_level_2);
-//   } else if (
-//     this.address.locality != undefined &&
-//     this.address.locality != this.name
-//   ) {
-//     addressArr.push(this.address.locality);
-//   }
-//   // console.log("arr", addressArr);
+    if (this.display_address.sublocality) {
+      addressArr.push(this.display_address.sublocality);
+    } else if (this.display_address.locality) {
+      addressArr.push(this.display_address.locality);
+    }
+  } else {
+    if (
+      this.address.administrative_area_level_1 != this.name &&
+      this.address.administrative_area_level_1 != undefined
+    ) {
+      addressArr.push(this.address.administrative_area_level_1);
+    }
 
-//   let reverseArr = [];
-//   if (addressArr.length != 0) {
-//     reverseArr = addressArr.reverse();
-//   }
+    if (
+      this.address.locality != undefined &&
+      this.address.locality != this.name
+    ) {
+      addressArr.push(this.address.locality);
+    }
+     else if (
+      this.address.sublocality_level_1 != undefined &&
+      this.address.sublocality_level_1 != this.name
+    ) {
+      addressArr.push(this.address.sublocality_level_1);
+    } else if (
+      this.address.sublocality_level_2 != undefined &&
+      this.address.sublocality_level_2 != this.name
+    ) {
+      addressArr.push(this.address.sublocality_level_2);
+    }
+  }
+  // console.log("arr", addressArr);
 
-//   let address = "";
-//   if (reverseArr.length != 0) {
-//     address = ", " + reverseArr.join(", ");
-//   }
+  let reverseArr = [];
+  if (addressArr.length != 0) {
+    reverseArr = addressArr.reverse();
+  }
 
-//   return address;
-// });
+  let address = "";
+  if (reverseArr.length != 0) {
+    address = reverseArr.join(", ");
+  }
 
-// //SET VIRTUAL FOR DISPLAYING ADDRESS FOR OTHER COUNTRY
-// placeSchema.virtual("display_address_for_other_country").get(function () {
-//   let arrAddress = [];
-
-//   if (this.address.country != undefined && this.address.country != this.name) {
-//     arrAddress.push(this.address.country);
-//   }
-
-//   if (
-//     this.address.administrative_area_level_1 != this.name &&
-//     this.address.administrative_area_level_1 != undefined
-//   ) {
-//     arrAddress.push(this.address.administrative_area_level_1);
-//   } else if (
-//     this.address.administrative_area_level_2 != undefined &&
-//     this.address.administrative_area_level_2 != this.name
-//   ) {
-//     arrAddress.push(this.address.administrative_area_level_2);
-//   } else if (
-//     this.address.natural_feature != undefined &&
-//     this.address.natural_feature != this.name
-//   ) {
-//     arrAddress.push(this.address.natural_feature);
-//   } else if (
-//     this.address.sublocality_level_1 != undefined &&
-//     this.address.sublocality_level_1 != this.name
-//   ) {
-//     arrAddress.push(this.address.sublocality_level_1);
-//   } else if (
-//     this.address.sublocality_level_2 != undefined &&
-//     this.address.sublocality_level_2 != this.name
-//   ) {
-//     arrAddress.push(this.address.sublocality_level_2);
-//   } else if (
-//     this.address.locality != undefined &&
-//     this.address.locality != this.name
-//   ) {
-//     arrAddress.push(this.address.locality);
-//   }
-
-//   let reverseArr = [];
-//   if (arrAddress.length != 0) {
-//     reverseArr = arrAddress.reverse();
-//   }
-
-//   let address = "";
-//   if (reverseArr.length != 0) {
-//     address = ", " + reverseArr.join(", ");
-//   }
-
-//   return address;
-// });
+  return address;
+});
 
 //Update view count
 placeSchema.pre("save", function (next) {
