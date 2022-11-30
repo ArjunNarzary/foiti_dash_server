@@ -5,6 +5,7 @@ var ObjectId = require('mongoose').Types.ObjectId;
 
 //View all Users
 exports.allUsers = async (req, res) => {
+    let errors = {};
     try{
         const users = await User.find({}).sort({createdAt: -1});
         return res.status(200).json({
@@ -97,6 +98,27 @@ exports.recalculateContribution = async (req, res) => {
             message: "User contribution updated successfully"
         })
 
+    }catch(error){
+        console.log(error);
+        errors.general = error.message
+        return res.status(500).json({
+            success: false,
+            message: errors,
+        })
+    }
+}
+
+
+//Total Users
+
+exports.totalUsers = async (req, res) => {
+    let errors = {}
+    try{
+        const totalUsers = await User.countDocuments();
+
+        res.status(200).json({
+            totalUsers
+        })
     }catch(error){
         console.log(error);
         errors.general = error.message

@@ -28,6 +28,7 @@ const place = require("./routes/place");
 const image = require("./routes/image");
 const website = require("./routes/website");
 const type = require("./routes/type");
+const usage = require("./routes/usage");
 const versionUrl = "/api/v1";
 
 //Use Routes
@@ -39,5 +40,6 @@ app.use(`${versionUrl}/place`, place);
 app.use(`${versionUrl}/image`, image);
 app.use(`${versionUrl}/website`, website);
 app.use(`${versionUrl}/type`, type);
+app.use(`${versionUrl}/usage`, usage);
 
 module.exports = app;
