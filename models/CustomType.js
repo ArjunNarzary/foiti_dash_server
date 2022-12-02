@@ -5,6 +5,10 @@ const customTypeSchema = new Schema(
     {
         display_type: String,
         type: String,
+        category: {
+            type: Boolean,
+            default: false
+        }
     },
     { timestamps: true }
 );

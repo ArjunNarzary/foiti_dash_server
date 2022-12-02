@@ -70,6 +70,7 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Place",
   },
+  formattedAddress: String,
   currently_in: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "CurrentAddress",

@@ -243,6 +243,36 @@ placeSchema.virtual("display_address_for_share").get(function () {
   return address;
 });
 
+//SET VIRTUAL FOR DISPLAYING ADDRESS FOR OWN COUNTRY
+placeSchema.virtual("display_address_to_show_on_user").get(function () {
+  let addressArr = [];
+
+  if (this.display_address_available) {
+    if (this.display_address.admin_area_1) {
+      addressArr.push(this.display_address.admin_area_1);
+    }
+  } else {
+    if (
+      this.address.administrative_area_level_1 != this.name &&
+      this.address.administrative_area_level_1 != undefined
+    ) {
+      addressArr.push(this.address.administrative_area_level_1);
+    }
+
+  }
+
+  //Add place name
+  if (this.display_name) {
+    addressArr.push(this.display_address)
+  } else {
+    addressArr.push(this.name)
+  }
+
+  let address = addressArr.reverse().join(", ");
+
+  return address;
+});
+
 //Update view count
 placeSchema.pre("save", function (next) {
   if (this.isModified("viewers")) {

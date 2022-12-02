@@ -21,7 +21,7 @@ exports.addType = async (req, res) => {
                 message: createError(errors, validate),
             });
         }
-        const { display_type, type } = req.body;
+        const { display_type, type, category } = req.body;
 
         const isTypeExist = await CustomType.findOne({ type: type.toLowerCase() });
         if(isTypeExist){
@@ -32,7 +32,7 @@ exports.addType = async (req, res) => {
             })
         }
 
-        const newType = await CustomType.create({ display_type, type: type.toLowerCase() });
+        const newType = await CustomType.create({ display_type, type: type.toLowerCase(), category });
 
         return res.status(200).json({
             success: true,
@@ -82,7 +82,7 @@ exports.editType = async (req, res) => {
         }
 
         const { type_id } = req.params;
-        const { display_type, type } = req.body;
+        const { display_type, type, category } = req.body;
 
         //Validate Object ID
         if (!ObjectId.isValid(type_id)) {
@@ -114,6 +114,7 @@ exports.editType = async (req, res) => {
 
         getType.display_type = display_type;
         getType.type = type.toLowerCase();
+        getType.category = category;
         await getType.save();
 
         return res.status(200).json({

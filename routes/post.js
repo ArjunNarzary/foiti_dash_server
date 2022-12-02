@@ -1,5 +1,5 @@
 const express = require("express");
-const { usersPostCount, usersPost, updatePostStatus, updateCoors, viewPostDetails, updatePostLocation, allPostWithCoordinates, changePostPlace } = require("../controllers/posts");
+const { usersPostCount, usersPost, updatePostStatus, updateCoors, viewPostDetails, updatePostLocation, allPostWithCoordinates, changePostPlace, allPost } = require("../controllers/posts");
 const { isAuthenticatedAdmin } = require("../middlewares/auth");
 const router = express.Router();
 
@@ -14,6 +14,7 @@ router.route("/change-place").post(isAuthenticatedAdmin, changePostPlace);
 
 //GET ALL POSTS WOTH COORDINATES
 router.route("/all-post-with-coordinates").post(isAuthenticatedAdmin, allPostWithCoordinates);
+router.route("/all-post").post(isAuthenticatedAdmin, allPost);
 
 //WRITE ALL ROUTES ABOVE THIS ROUTE
 router.route("/:post_id").post(isAuthenticatedAdmin, updatePostStatus)

@@ -7,7 +7,35 @@ var ObjectId = require('mongoose').Types.ObjectId;
 exports.allUsers = async (req, res) => {
     let errors = {};
     try{
-        const users = await User.find({}).sort({createdAt: -1});
+        const users = await User.find({})
+            .select("_id name email email_verified address place formattedAddress total_contribution follower following account_status createdAt")
+            .populate("place", "_id address name display_name display_address display_address_available")
+            .sort({createdAt: -1});
+
+
+        users.forEach(user => {
+            if(user?.place?._id){
+                user.formattedAddress = user.place.display_address_to_show_on_user
+            }else{
+                let address = "";
+                let addressArr = [];
+                if(user?.address?.name){
+                    addressArr.push(user?.address?.name)
+                }
+
+                if (user?.address?.administrative_area_level_1 && 
+                    (user?.address?.name != user?.address?.administrative_area_level_1)){
+                    addressArr.push(user?.address?.administrative_area_level_1)
+                }
+
+                if (addressArr.length > 0){
+                    address = addressArr.join(", ");
+                }
+
+                user.formattedAddress = address;
+            }
+        });
+
         return res.status(200).json({
             success: true,
             users,
