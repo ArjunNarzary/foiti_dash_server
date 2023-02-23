@@ -83,6 +83,27 @@ const userSchema = new mongoose.Schema({
     type: String,
     lowercase: true,
   },
+  meetup_reason: {
+    type: String,
+    maxlength: [1000, "Meetup reason should be under 1000 characters"],
+  },
+  interests: {
+    type: String,
+    maxlength: [500, "Interest should be under 500 characters"],
+  },
+  education: {
+    type: String,
+    maxlength: [500, "Education should be under 500 characters"],
+  },
+  occupation: {
+    type: String,
+    maxlength: [500, "Occupation should be under 500 characters"],
+  },
+  languages: [String],
+  movies_books_music: {
+    type: String,
+    maxlength: [500, "Movies_books_music should be under 500 characters"],
+  },
   visited: {
     places: {
       type: Number,
