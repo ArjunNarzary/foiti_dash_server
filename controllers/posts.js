@@ -3,6 +3,9 @@ const User = require("../models/User");
 const Place = require("../models/Place");
 const Contribution = require("../models/Contribution");
 const PlaceAddedBy = require("../models/PlaceAddedBy");
+const { formatTiming } = require("../utils/handles");
+const Review = require("../models/Review");
+const { deleteFile } = require("../utils/s3");
 var ObjectId = require("mongoose").Types.ObjectId;
 
 exports.usersPostCount = async (req, res) => {
@@ -100,8 +103,8 @@ exports.usersPost = async (req, res) => {
 
     const posts = await Post.find({ user: user_id })
       .populate("place", "name address google_types")
-      .populate("user", "name").sort({ createdAt: -1 });
-
+      .populate("user", "name")
+      .sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -132,8 +135,13 @@ exports.updatePostStatus = async (req, res) => {
         message: errors,
       });
     }
+    const defaultValues = ["silent", "active", "deactivated", "blocked"];
 
-    if (action == "" || action == undefined) {
+    if (
+      action == "" ||
+      action == undefined ||
+      !defaultValues.includes(action)
+    ) {
       errors.action = "Please select action type";
       return res.status(401).json({
         success: false,
@@ -141,7 +149,9 @@ exports.updatePostStatus = async (req, res) => {
       });
     }
 
-    const post = await Post.findById(post_id);
+    const post = await Post.findById(post_id)
+      .populate("place", "name address google_types types")
+      .populate("user", "name");
     if (!post) {
       errors.general = "Post not found";
       return res.status(404).json({
@@ -156,6 +166,55 @@ exports.updatePostStatus = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Post updated successful",
+      post,
+    });
+  } catch (error) {
+    console.log(error);
+    errors.general = error.message;
+    res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+};
+
+//UPDATE RECOMMEND STATUS
+exports.updatePostRecommend = async (req, res) => {
+  let errors = {};
+  try {
+    const { post_id } = req.params;
+    const { action, type } = req.body;
+
+    //Validate Object ID
+    if (!ObjectId.isValid(post_id)) {
+      errors.general = "Invalid post";
+      return res.status(400).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    const post = await Post.findById(post_id)
+      .populate("place", "name address google_types types")
+      .populate("user", "name");
+    if (!post) {
+      errors.general = "Post not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    if (type === "recommend_post") {
+      post.recommend = action;
+    } else if (type === "verify_coordinates") {
+      post.verified_coordinates = action;
+    }
+    await post.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Post recommend status updated successful",
       post,
     });
   } catch (error) {
@@ -200,7 +259,9 @@ exports.updateCoors = async (req, res) => {
       });
     }
 
-    const post = await Post.findById(post_id);
+    const post = await Post.findById(post_id)
+      .populate("user", "_id name")
+      .populate("place", "_id name display_address address");
     if (!post) {
       errors.general = "Post not found";
       return res.status(404).json({
@@ -213,10 +274,10 @@ exports.updateCoors = async (req, res) => {
 
     post.content[0].coordinate.lat = lat;
     post.content[0].coordinate.lng = lng;
-    post.content[0].location =  {
-      coordinates: [parseFloat(lng), parseFloat(lat)]
-    },
-    post.coordinate_status = true;
+    (post.content[0].location = {
+      coordinates: [parseFloat(lng), parseFloat(lat)],
+    }),
+      (post.coordinate_status = true);
     await post.save();
 
     if (!cordStatus) {
@@ -374,14 +435,16 @@ exports.updatePostLocation = async (req, res) => {
         }
         if (place.reviewed_status === false && place.users.length === 0) {
           await place.deleteOne();
-        }else{
-          if (place.cover_photo.large.private_id ==
-            post.content[0].image.large.private_id){
-              place.cover_photo = {};
-              await place.save();
-            }
+        } else {
+          if (
+            place.cover_photo.large.private_id ==
+            post.content[0].image.large.private_id
+          ) {
+            place.cover_photo = {};
+            await place.save();
+          }
         }
-      }else{
+      } else {
         //REPLACE PLACE COVER PHOTO IF DELETED POST IS COVER PHOTO`
         if (
           place.cover_photo.large.private_id ==
@@ -419,13 +482,33 @@ exports.updatePostLocation = async (req, res) => {
     if (!samePlace) {
       place = await Place.findOne({ google_place_id: details.place_id });
       if (!place) {
+        //Format timming if available
+        let timingArr = [];
+        let phone_number = "";
+        if (details.timing) {
+          if (formatTiming(details.timing)) {
+            timingArr = formatTiming(details.timing);
+          }
+        }
+        if (typeof details.phone_number === "string") {
+          phone_number = details.phone_number;
+        }
+
         place = await Place.create({
           name: details.name,
           google_place_id: details.place_id,
           address: details.address,
           coordinates: details.coordinates,
+          location: {
+            coordinates: [
+              parseFloat(details.coordinates.lng),
+              parseFloat(details.coordinates.lat),
+            ],
+          },
           google_types: details.types,
           cover_photo: post.content[0].image,
+          open_hours: timingArr,
+          phone_number,
         });
         newPlaceCreated = true;
       }
@@ -451,7 +534,7 @@ exports.updatePostLocation = async (req, res) => {
         user: post.user,
       });
       //ADD to contribution table
-      currentUserContribution.added_places.push(place._id)
+      currentUserContribution.added_places.push(place._id);
     }
     await currentUserContribution.save();
     currentUser.total_contribution =
@@ -483,7 +566,7 @@ exports.updatePostLocation = async (req, res) => {
 //Modify post place
 exports.changePostPlace = async (req, res) => {
   let errors = {};
-  try{
+  try {
     const { post_id, place_id } = req.body;
 
     //Validate Object ID
@@ -513,7 +596,7 @@ exports.changePostPlace = async (req, res) => {
       });
     }
 
-    if(post.place.toString() === newPlace._id.toString()){
+    if (post.place.toString() === newPlace._id.toString()) {
       errors.general = "This place is already selected";
       return res.status(404).json({
         success: false,
@@ -566,10 +649,51 @@ exports.changePostPlace = async (req, res) => {
         await placeCreated.deleteOne();
       }
       if (place.reviewed_status === false && place.users.length === 0) {
+        //DELETE ALL REVIEWS ADDED BY USERS AND CONTRIBUTIONS
+        const reviews = await Review.find({ place_id: place._id });
+        if (reviews.length > 0) {
+          //Remove contributions
+          reviews.forEach(async (reviewData) => {
+            const userContribution = await Contribution.findOne({
+              userId: reviewData.user_id,
+            });
+            if (userContribution.reviews.includes(reviewData._id)) {
+              const index = userContribution.reviews.indexOf(reviewData._id);
+              userContribution.reviews.splice(index, 1);
+            }
+            if (
+              userContribution.review_200_characters.includes(reviewData._id)
+            ) {
+              const index = userContribution.review_200_characters.indexOf(
+                reviewData._id
+              );
+              userContribution.review_200_characters.splice(index, 1);
+            }
+            if (userContribution.ratings.includes(reviewData._id)) {
+              const index = userContribution.ratings.indexOf(reviewData._id);
+              userContribution.ratings.splice(index, 1);
+            }
+
+            await userContribution.save();
+            const contributionOwner = await User.findById(
+              userContribution.userId
+            );
+            if (contributionOwner) {
+              contributionOwner.total_contribution =
+                userContribution.calculateTotalContribution();
+              await contributionOwner.save();
+            }
+          });
+        }
+
+        //GET ALL REVIEWS OF THE PLACE AND REMOVE
+        await Review.deleteMany({ place_id: place._id });
         await place.deleteOne();
       } else {
-        if (place.cover_photo.large.private_id ==
-          post.content[0].image.large.private_id) {
+        if (
+          place.cover_photo.large.private_id ==
+          post.content[0].image.large.private_id
+        ) {
           place.cover_photo = {};
           await place.save();
         }
@@ -610,12 +734,12 @@ exports.changePostPlace = async (req, res) => {
     post.name = newPlace.name;
     post.place = newPlace._id;
     newPlace.posts.push(post._id);
-    
+
     //Add post image to place cover if not exist
-    if (post.coordinate_status && !newPlace.cover_photo.large.private_id){
+    if (post.coordinate_status && !newPlace.cover_photo.large.private_id) {
       newPlace.cover_photo = post.content[0].image;
     }
-    
+
     await post.save();
     await newPlace.save();
 
@@ -628,103 +752,115 @@ exports.changePostPlace = async (req, res) => {
       message: "Post updated successful",
       newPost,
     });
-
-
-
-  } catch(error){
+  } catch (error) {
     console.log(error);
     errors.general = error.message;
     res.status(500).json({
       success: false,
-      message: errors
-    })
+      message: errors,
+    });
   }
-}
+};
 
 //ALL POSTS WITH COORDINATES
 exports.allPostWithCoordinates = async (req, res) => {
   let errors = {};
-  try{
+  try {
     let { limit = 50, skip } = req.body;
 
-      const allPosts = await Post.find({})
-        .select('_id name content caption coordinate_status status')
-        .where('coordinate_status').equals(true)
-        .where('status').equals('active')
-        .populate('user', 'name')
-        .populate('place', 'name display_address address')
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
+    const allPosts = await Post.find({})
+      .where("coordinate_status")
+      .equals(true)
+      .where("status")
+      .equals("active")
+      .populate("user", "name")
+      .populate("place", "name display_address address")
+      .limit(limit)
+      .skip(skip)
+      .sort({ createdAt: -1 });
 
-    if(allPosts.length > 0){
+    if (allPosts.length > 0) {
       skip = skip + allPosts.length;
     }
+
+    const totalPostCount = await Post.find({})
+      .where("coordinate_status")
+      .equals(true)
+      .where("status")
+      .equals("active")
+      .populate("user", "name")
+      .populate("place", "name display_address address")
+      .countDocuments();
 
     res.status(200).json({
       success: true,
       allPosts,
       skip,
-      limit
-    })
-
-
-  }catch(error){
+      limit,
+      totalPostCount,
+    });
+  } catch (error) {
     console.log(error);
     errors.general = error.message;
     res.status(500).json({
       succes: false,
       message: errors,
-    })
+    });
   }
-}
+};
 
 //All posts
 exports.allPost = async (req, res) => {
   let errors = {};
-  try{
+  try {
     let { limit = 50, skip, active, coordinateStatus } = req.body;
-      let allPosts = [];
+    let allPosts = [];
 
-      if(active === "" && coordinateStatus === ""){
-        allPosts = await Post.find({})
-          .select('_id name content caption coordinate_status status')
-          .populate('user', 'name')
-          .populate('place', 'name display_address address')
-          .limit(limit)
-          .skip(skip)
-          .sort({ createdAt: -1 });
-      } else if (active === "" && coordinateStatus !== ""){
-          allPosts = await Post.find({})
-            .select('_id name content caption coordinate_status status')
-            .where('coordinate_status').equals(coordinateStatus)
-            .populate('user', 'name')
-            .populate('place', 'name display_address address')
-            .limit(limit)
-            .skip(skip)
-            .sort({ createdAt: -1 });
-      } else if (active !== "" && coordinateStatus === ""){
-        allPosts = await Post.find({})
-          .select('_id name content caption coordinate_status status')
-          .where('status').equals(active)
-          .populate('user', 'name')
-          .populate('place', 'name display_address address')
-          .limit(limit)
-          .skip(skip)
-          .sort({ createdAt: -1 });
-      }else{
-        allPosts = await Post.find({})
-          .select('_id name content caption coordinate_status status')
-          .where('coordinate_status').equals(coordinateStatus)
-          .where('status').equals(active)
-          .populate('user', 'name')
-          .populate('place', 'name display_address address')
-          .limit(limit)
-          .skip(skip)
-          .sort({ createdAt: -1 });
-      }
+    const totalPostCount = await Post.countDocuments();
 
-    if(allPosts.length > 0){
+    if (active === "" && coordinateStatus === "") {
+      allPosts = await Post.find({})
+        // .select('_id name content caption coordinate_status status')
+        .populate("user", "_id name")
+        .populate("place", "_id name display_address address")
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 });
+    } else if (active === "" && coordinateStatus !== "") {
+      allPosts = await Post.find({})
+        // .select('_id name content caption coordinate_status status')
+        .where("coordinate_status")
+        .equals(coordinateStatus)
+        .populate("user", "_id name")
+        .populate("place", "_id name display_address address")
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 });
+    } else if (active !== "" && coordinateStatus === "") {
+      allPosts = await Post.find({})
+        // .select('_id name content caption coordinate_status status')
+        .where("status")
+        .equals(active)
+        .populate("user", "_id name")
+        .populate("place", "_id name display_address address")
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 });
+    } else {
+      allPosts = await Post.find({})
+        // .select('_id name content caption coordinate_status status')
+        .where("coordinate_status")
+        .equals(coordinateStatus)
+        .where("status")
+        .equals(active)
+        .populate("user", "_id name")
+        .populate("place", "_id name display_address address")
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 });
+    }
+
+    if (allPosts.length > 0) {
       skip = skip + allPosts.length;
     }
 
@@ -732,16 +868,233 @@ exports.allPost = async (req, res) => {
       success: true,
       allPosts,
       skip,
-      limit
-    })
-
-
-  }catch(error){
+      limit,
+      totalPostCount,
+    });
+  } catch (error) {
     console.log(error);
     errors.general = error.message;
     res.status(500).json({
       succes: false,
       message: errors,
-    })
+    });
   }
-}
+};
+
+//Remove post details
+exports.removePost = async (req, res) => {
+  let errors = {};
+  try {
+    const { post_id } = req.params;
+
+    //Validate Object ID
+    if (!ObjectId.isValid(post_id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid post",
+      });
+    }
+
+    const post = await Post.findById(post_id);
+    if (!post) {
+      errors.general = "Post not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    //Remove post from place
+    const place = await Place.findById(post.place);
+
+    if (place) {
+      //Delete place from post
+      if (place.posts.includes(post._id)) {
+        const index = place.posts.indexOf(post._id);
+        place.posts.splice(index, 1);
+        await place.save();
+      }
+
+      //DELETE PLACE IF NO POST AVAILABLE
+      if (place.posts.length === 0) {
+        const placeCreated = await PlaceAddedBy.findOne({
+          place: place._id,
+        });
+
+        //REMOVE CONTRIBUITION FROM THE USER WHO CREATED THE PLACE
+        if (placeCreated) {
+          const placeCreator = await User.findById(placeCreated.user);
+          //REMOVE PLACE FROM CONTRIBUTION TABLE
+          const contribution = await Contribution.findOne({
+            userId: placeCreator._id,
+          });
+
+          if (contribution.added_places.includes(place._id)) {
+            const index = contribution.added_places.indexOf(place._id);
+            contribution.added_places.splice(index, 1);
+            await contribution.save();
+          }
+          if (placeCreator) {
+            placeCreator.total_contribution =
+              contribution.calculateTotalContribution();
+            await placeCreator.save();
+          }
+
+          await placeCreated.deleteOne();
+        }
+        if (place.reviewed_status === false && place.users.length === 0) {
+          //DELETE ALL REVIEWS ADDED BY USERS AND CONTRIBUTIONS
+          const reviews = await Review.find({ place_id: place._id });
+          if (reviews.length > 0) {
+            //Remove contributions
+            reviews.forEach(async (reviewData) => {
+              const userContribution = await Contribution.findOne({
+                userId: reviewData.user_id,
+              });
+              if (userContribution.reviews.includes(reviewData._id)) {
+                const index = userContribution.reviews.indexOf(reviewData._id);
+                userContribution.reviews.splice(index, 1);
+              }
+              if (
+                userContribution.review_200_characters.includes(reviewData._id)
+              ) {
+                const index = userContribution.review_200_characters.indexOf(
+                  reviewData._id
+                );
+                userContribution.review_200_characters.splice(index, 1);
+              }
+              if (userContribution.ratings.includes(reviewData._id)) {
+                const index = userContribution.ratings.indexOf(reviewData._id);
+                userContribution.ratings.splice(index, 1);
+              }
+
+              await userContribution.save();
+              const contributionOwner = await User.findById(
+                userContribution.userId
+              );
+              if (contributionOwner) {
+                contributionOwner.total_contribution =
+                  userContribution.calculateTotalContribution();
+                await contributionOwner.save();
+              }
+            });
+          }
+
+          //GET ALL REVIEWS OF THE PLACE AND REMOVE
+          await Review.deleteMany({ place_id: place._id });
+          await place.deleteOne();
+        } else {
+          if (
+            place.cover_photo.large.private_id ==
+            post.content[0].image.large.private_id
+          ) {
+            place.cover_photo = {};
+            await place.save();
+          }
+        }
+      } else {
+        //REPLACE PLACE COVER PHOTO IF DELETED POST IS COVER PHOTO`
+        if (
+          place.cover_photo.large.private_id ==
+          post.content[0].image.large.private_id
+        ) {
+          //GET MOST LIKE ARRAY COUNT
+          const HighestLikedPost = await Post.aggregate([
+            {
+              $match: Post.where("_id")
+                .ne(post._id)
+                .where("place")
+                .equals(place._id)
+                .where("coordinate_status")
+                .equals(true)
+                .cast(Post),
+            },
+            {
+              $addFields: {
+                TotalLike: { $size: "$like" },
+              },
+            },
+            { $sort: { TotalLike: -1 } },
+          ]).limit(1);
+          if (HighestLikedPost.length > 0) {
+            place.cover_photo = HighestLikedPost[0].content[0].image;
+          } else {
+            place.cover_photo = {};
+          }
+        }
+        await place.save();
+      }
+    }
+
+    const contribution = await Contribution.findOne({ userId: post.user });
+    if (contribution) {
+      const index = contribution.photos.indexOf(post._id);
+      contribution.photos.splice(index, 1);
+      if (post.coordinate_status) {
+        const index1 = contribution.photos_with_coordinates.indexOf(post._id);
+        contribution.photos_with_coordinates.splice(index1, 1);
+      }
+    }
+    await contribution.save();
+
+    const user = await User.findById(post.user);
+    user.total_contribution = contribution.calculateTotalContribution();
+    await user.save();
+    // }
+
+    //DELETE POST IMAGES and DELETE POST
+    await deleteFile(post.content[0].image.large.private_id);
+    // await deleteFile(post.content[0].image.thumbnail.private_id);
+    // await deleteFile(post.content[0].image.small.private_id);
+    post.status = "removed";
+    post.coordinate_status = false;
+    post.verified_coordinates = false;
+    post.recommend = false;
+    post.deactivated = true;
+    post.terminated = true;
+    post.place = undefined;
+    await post.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Post deleted successfully",
+      post,
+    });
+
+    //Remove post
+  } catch (error) {
+    console.log(error);
+    errors.general = error.message;
+    res.status(500).json({
+      succes: false,
+      message: errors,
+    });
+  }
+};
+
+//TODO:::REMOVE BELOW API ONCE DONE
+//SET ALL POST WITH COORDINATES AND ACTIVE TO RECOMMEND TRUE
+exports.setRecommend = async (req, res) => {
+  try {
+    const updatePost = await Post.updateMany(
+      {
+        status: "active",
+        coordinate_status: true,
+      },
+      {
+        $set: { recommend: true },
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      updatePost,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

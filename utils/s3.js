@@ -45,10 +45,9 @@ exports.deleteFile = (filename) => {
     Key: filename,
   };
 
-  if(filename != null && filename != "" && filename != undefined){
+  if (filename != null && filename != "" && filename != undefined) {
     return storage.deleteObject(params).promise();
-  }else{
+  } else {
     return true;
   }
-  
 };

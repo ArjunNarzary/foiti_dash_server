@@ -3,12 +3,12 @@ const mongoose = require("mongoose");
 const pointSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['Point'],
+    enum: ["Point"],
     default: "Point",
   },
   coordinates: {
     type: [Number], // Array of arrays of arrays of numbers
-  }
+  },
 });
 
 const postSchema = new mongoose.Schema(
@@ -49,7 +49,7 @@ const postSchema = new mongoose.Schema(
         createdDate: {
           year: Number,
           month: Number,
-          day: Number
+          day: Number,
         },
         coordinate: {
           lat: String,
@@ -62,9 +62,9 @@ const postSchema = new mongoose.Schema(
         },
         location: {
           type: pointSchema,
-          index: '2dsphere', // Create a special 2dsphere index
-          sparse: true
-        }
+          index: "2dsphere", // Create a special 2dsphere index
+          sparse: true,
+        },
       },
     ],
     caption: {
@@ -110,7 +110,7 @@ const postSchema = new mongoose.Schema(
     viewers_count: Number,
     status: {
       type: String,
-      enum: ["silent", "active", "deactivated", "blocked"],
+      enum: ["silent", "active", "deactivated", "blocked", "removed"],
     },
     coordinate_status: {
       type: Boolean,
