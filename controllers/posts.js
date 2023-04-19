@@ -161,7 +161,15 @@ exports.updatePostStatus = async (req, res) => {
     }
 
     post.status = action;
-    await post.save();
+    if (action === "active") {
+      const place = await Place.findById(post.place._id)
+      if(place){
+        place.review_required = true;
+        await place.save();
+      }
+    }
+    
+    await post.save()
 
     return res.status(200).json({
       success: true,
@@ -1072,29 +1080,71 @@ exports.removePost = async (req, res) => {
   }
 };
 
-//TODO:::REMOVE BELOW API ONCE DONE
-//SET ALL POST WITH COORDINATES AND ACTIVE TO RECOMMEND TRUE
-exports.setRecommend = async (req, res) => {
+
+//Remove post coordinates
+exports.removePostCoordinate = async (req, res) => {
+  let errors = {};
   try {
-    const updatePost = await Post.updateMany(
-      {
-        status: "active",
-        coordinate_status: true,
-      },
-      {
-        $set: { recommend: true },
+    const { post_id } = req.params;
+
+    //Validate Object ID
+    if (!ObjectId.isValid(post_id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid post",
+      });
+    }
+
+    const post = await Post.findById(post_id);
+    if (!post) {
+      errors.general = "Post not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    const contribution = await Contribution.findOne({ userId: post.user });
+    if (contribution) {
+      if (post.coordinate_status) {
+        const index = contribution.photos_with_coordinates.indexOf(post._id);
+        contribution.photos_with_coordinates.splice(index, 1);
       }
-    );
+    }
+    await contribution.save();
+
+    const user = await User.findById(post.user);
+    user.total_contribution = contribution.calculateTotalContribution();
+    await user.save();
+
+    //Remove coordinates
+    const coords = {
+      lat: "",
+      lng: ""
+    }
+    const newContentObj = post.content[0];
+    newContentObj.coordinate = coords;
+    newContentObj.location = undefined;
+
+    post.content = [newContentObj]
+    post.coordinate_status = false;
+    post.verified_coordinates = false;
+    post.recommend = false;
+    await post.save();
 
     return res.status(200).json({
       success: true,
-      updatePost,
+      message: "Post deleted successfully",
+      post,
     });
+
+    //Remove post
   } catch (error) {
     console.log(error);
+    errors.general = error.message;
     res.status(500).json({
-      success: false,
-      message: error.message,
+      succes: false,
+      message: errors,
     });
   }
 };

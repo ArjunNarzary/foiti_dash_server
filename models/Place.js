@@ -48,7 +48,9 @@ const placeSchema = new mongoose.Schema(
     display_address: {
       locality: String,
       sublocality: String,
-      admin_area_2: String,  //District name
+      premise: String, //manual
+      admin_area_3: String,  //manual
+      admin_area_2: String,  //District name -> google_admin_area_3
       admin_area_1: String, //State name
       country: String,
       short_country: String,
@@ -169,6 +171,10 @@ const placeSchema = new mongoose.Schema(
     },
     //If this place is reviewed by team then this will be true
     reviewed_status: {
+      type: Boolean,
+      default: false,
+    },
+    review_required: {
       type: Boolean,
       default: false,
     },

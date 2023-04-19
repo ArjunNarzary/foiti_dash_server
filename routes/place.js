@@ -2,7 +2,7 @@ const { Router } = require("express");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
 const express = require("express");
-const { allPlaces, getPlace, changeName, updateCoors, changeAddress, addEditCustomType, addEditAlias, changeDisplayAddress, searchPlace, setOriginalPlace, deleteOriginalPlace, toggleShowDestination, toggleDestination, setSearchRank, setEditorRating, mergeDisplayAddress, changeCover, setOriginalDisplayName } = require("../controllers/place");
+const { allPlaces, getPlace, changeName, updateCoors, changeAddress, addEditCustomType, addEditAlias, changeDisplayAddress, searchPlace, setOriginalPlace, deleteOriginalPlace, toggleShowDestination, toggleDestination, setSearchRank, setEditorRating, mergeDisplayAddress, changeCover, setOriginalDisplayName, deleteCover, setReviewRequired, changeReviewRequiredStatus } = require("../controllers/place");
 const { isAuthenticatedAdmin } = require("../middlewares/auth");
 const router = express.Router();
 
@@ -19,7 +19,18 @@ router.route("/search-rank/:place_id").post(isAuthenticatedAdmin, setSearchRank)
 router.route("/editor-rating/:place_id").post(isAuthenticatedAdmin, setEditorRating);
 router.route("/originalPlace/:place_id").post(isAuthenticatedAdmin, setOriginalPlace)
                                         .delete(isAuthenticatedAdmin, deleteOriginalPlace);
-router.route("/change-cover/:place_id").post(isAuthenticatedAdmin, upload.single("coverPhoto"), changeCover);
+router.route("/change-review-required-status").patch(isAuthenticatedAdmin, changeReviewRequiredStatus);
+
+//TODO::REMOVE BELOW API ONCE DONE
+router
+  .route("/set-review-required")
+  .post(isAuthenticatedAdmin, setReviewRequired)
+
+
+router
+  .route("/change-cover/:place_id")
+  .post(isAuthenticatedAdmin, upload.single("coverPhoto"), changeCover)
+  .delete(isAuthenticatedAdmin, deleteCover);
 router.route("/search").get(isAuthenticatedAdmin, searchPlace);
 
 //=======TEMPORARY LINK TO COPY ORIGINAL NAME TO DISPLAY NAME

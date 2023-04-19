@@ -378,8 +378,8 @@ exports.mergeDisplayAddress = async (req, res) => {
     if (place.address.locality) {
       address.locality = place.address.locality;
     }
-    if (place.address.administrative_area_level_2) {
-      address.admin_area_2 = place.address.administrative_area_level_2;
+    if (place.address.administrative_area_level_3) {
+      address.admin_area_2 = place.address.administrative_area_level_3;
     }
     if (place.address.administrative_area_level_1) {
       address.admin_area_1 = place.address.administrative_area_level_1;
@@ -1124,6 +1124,75 @@ exports.changeCover = async (req, res) => {
   }
 };
 
+//DELETE COVER PHOTO
+exports.deleteCover = async (req, res) => {
+  let errors = {};
+  try {
+    const { place_id } = req.params;
+
+    //Validate Object ID
+    if (!ObjectId.isValid(place_id)) {
+      errors.general = "Invalid place";
+      return res.status(400).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    const place = await Place.findById(place_id)
+      .populate("original_place_id")
+      .populate("duplicate_place_id", "_id name")
+      .populate("posts");
+
+    if (!place) {
+      errors.general = "Place not found";
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      });
+    }
+
+    let coverPhotoOfPost = false;
+    if (place.cover_photo.large != undefined && place.posts.length > 0) {
+      place.posts.forEach((post) => {
+        if (
+          place.cover_photo.large.private_id ==
+          post.content[0].image.large.private_id
+        ) {
+          coverPhotoOfPost = true;
+          return false;
+        }
+      });
+    }
+
+
+    //REMOVE image from S3 if cover photo is not same with any post photo
+    if (!coverPhotoOfPost && place.cover_photo.large != undefined) {
+      await deleteFile(place.cover_photo.large.private_id);
+      await deleteFile(place.cover_photo.thumbnail.private_id);
+      await deleteFile(place.cover_photo.small.private_id);
+    }
+
+    place.cover_photo = {};
+    place.reviewed_status = true;
+    await place.save();
+
+    //REMOVE FILE FROM UPLOAD FOLDER
+    return res.status(200).json({
+      success: true,
+      message: "Cover photo has been removed successfully",
+      place,
+    });
+  } catch (error) {
+    console.log(error);
+    errors.general = error.message;
+    res.status(500).json({
+      success: false,
+      message: errors,
+    });
+  }
+};
+
 //=======TEMPORARY LINK TO COPY ORIGINAL NAME TO DISPLAY NAME
 exports.setOriginalDisplayName = async (req, res) => {
   try {
@@ -1150,4 +1219,86 @@ exports.setOriginalDisplayName = async (req, res) => {
     });
   }
 };
-//=======TEMPORARY LINK TO COPY ORIGINAL NAME TO DISPLAY NAME
+
+//Change Review Required Status
+exports.changeReviewRequiredStatus = async(req, res) =>{
+  let errors = {};
+  try{
+    const { place_id } = req.body
+    
+    //Validate Object ID
+    if (!ObjectId.isValid(place_id)) {
+      errors.general = "Invalid place"
+      return res.status(400).json({
+        success: false,
+        message: errors,
+      })
+    }
+
+    const place = await Place.findById(place_id)
+                  .populate("original_place_id")
+                  .populate("duplicate_place_id", "_id name");
+
+    if(!place){
+      errors.general = "Place not found"
+      return res.status(404).json({
+        success: false,
+        message: errors,
+      })
+    }
+
+    if (place.review_required === undefined){
+      place.review_required = true;
+    } else{
+      place.review_required = !place.review_required
+    }
+    place.reviewed_status = true;
+
+
+    await place.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Review required status has been updated successfully.",
+      place,
+    })
+
+  }catch(error){
+    console.log(error)
+    res.status.json({
+      success: false,
+      messgae: error.messgae,
+    })
+  }
+}
+
+
+
+
+
+//TODO:::REMOVE BELOW API ONCE DONE
+//SET ALL PLACE REVIEW REQUIRED TRUE IF REVIEWED STATUS TRUE 
+exports.setReviewRequired = async (req, res) => {
+  console.log("here");
+  try {
+    const updatePlace = await Place.updateMany(
+      {
+        reviewed_status: true,
+      },
+      {
+        $set: { review_required: true },
+      }
+    )
+
+    return res.status(200).json({
+      success: true,
+      updatePlace,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

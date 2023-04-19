@@ -12,6 +12,7 @@ const {
   updatePostRecommend,
   removePost,
   setRecommend,
+  removePostCoordinate,
 } = require("../controllers/posts");
 const { isAuthenticatedAdmin } = require("../middlewares/auth");
 const router = express.Router();
@@ -32,8 +33,10 @@ router
   .post(isAuthenticatedAdmin, allPostWithCoordinates);
 router.route("/all-post").post(isAuthenticatedAdmin, allPost);
 
-//TODO::REMOVE BELOW API ONCE DONE
-router.route("/set-recommend").post(isAuthenticatedAdmin, setRecommend);
+//DELETE COORDINATES
+router
+  .route("/remove-coords/:post_id")
+  .patch(isAuthenticatedAdmin, removePostCoordinate);
 
 //WRITE ALL ROUTES ABOVE THIS ROUTE
 router
