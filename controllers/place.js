@@ -1272,33 +1272,3 @@ exports.changeReviewRequiredStatus = async(req, res) =>{
   }
 }
 
-
-
-
-
-//TODO:::REMOVE BELOW API ONCE DONE
-//SET ALL PLACE REVIEW REQUIRED TRUE IF REVIEWED STATUS TRUE 
-exports.setReviewRequired = async (req, res) => {
-  console.log("here");
-  try {
-    const updatePlace = await Place.updateMany(
-      {
-        reviewed_status: true,
-      },
-      {
-        $set: { review_required: true },
-      }
-    )
-
-    return res.status(200).json({
-      success: true,
-      updatePlace,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};

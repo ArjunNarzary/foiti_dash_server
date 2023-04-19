@@ -21,11 +21,6 @@ router.route("/originalPlace/:place_id").post(isAuthenticatedAdmin, setOriginalP
                                         .delete(isAuthenticatedAdmin, deleteOriginalPlace);
 router.route("/change-review-required-status").patch(isAuthenticatedAdmin, changeReviewRequiredStatus);
 
-//TODO::REMOVE BELOW API ONCE DONE
-router
-  .route("/set-review-required")
-  .post(isAuthenticatedAdmin, setReviewRequired)
-
 
 router
   .route("/change-cover/:place_id")
