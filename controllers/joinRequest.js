@@ -131,7 +131,7 @@ exports.requestAction = async (req, res) => {
             //SEND EMAIL
             try {
                 await sendEmail({
-                    from: "Foiti <no-reply@foiti.com>",
+                    from: "Foiti <no-reply@gmail.com>",
                     email: joinRequest.email,
                     subject: "Welcome aboard, traveller!",
                     message,
